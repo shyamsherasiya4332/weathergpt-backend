@@ -552,10 +552,11 @@ Follow all rules of WeatherGPT system prompt.
         summaryHeading = `${loc} માં ${stats.timePeriodGu} વાતાવરણ મુખ્યત્વે સાફ અને અનુકૂળ રહેશે. વરસાદની શક્યતા નહિવત (${rainProb}%) છે.`;
       }
 
+      const peakTimingGu = rainAnalysis.peakRainTimeWindow ? ` (સૌથી વધુ શક્યતા આશરે ${rainAnalysis.peakRainTimeWindow})` : '';
       if (rainProb >= 60) {
-        rainText = `હળવાથી મધ્યમ વરસાદ (${rainProb}% સંભાવના, ~${rainAmount} mm)`;
+        rainText = `હળવાથી મધ્યમ વરસાદ (${rainProb}% સંભાવના, ~${rainAmount} mm${peakTimingGu})`;
       } else if (rainProb >= 30) {
-        rainText = `હળવા ઝાપટાં શક્ય (${rainProb}% સંભાવના)`;
+        rainText = `હળવા ઝાપટાં શક્ય (${rainProb}% સંભાવના${peakTimingGu})`;
       } else {
         rainText = `નહિવત / વરસાદની ઓછી શક્યતા (${rainProb}%)`;
       }
