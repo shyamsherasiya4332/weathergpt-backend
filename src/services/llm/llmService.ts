@@ -83,11 +83,146 @@ function translateConditionToHindi(condition: string): string {
   return condition;
 }
 
+interface TimeRangeStats {
+  labelGu: string;
+  labelHi: string;
+  labelEn: string;
+  maxTemp: number;
+  minTemp: number;
+  maxRainProb: number;
+  totalRainMm: number;
+  avgWind: number;
+  condition: string;
+  isSpecificRange: boolean;
+  timePeriodGu: string;
+  timePeriodHi: string;
+  timePeriodEn: string;
+}
+
+function getTimeRangeStats(
+  weatherData: WeatherData,
+  targetDateStr: string,
+  timeRange?: string,
+  specificTimeRange?: { startHour: number; endHour: number }
+): TimeRangeStats {
+  let startH = 0;
+  let endH = 23;
+  let labelGu = 'કાલનું હવામાન';
+  let labelHi = 'कल का मौसम';
+  let labelEn = 'Weather Forecast';
+  let timePeriodGu = 'કાલે';
+  let timePeriodHi = 'कल';
+  let timePeriodEn = 'tomorrow';
+  let isSpecificRange = false;
+
+  if (timeRange === 'morning' || (specificTimeRange && specificTimeRange.startHour === 6)) {
+    startH = 6;
+    endH = 12;
+    labelGu = 'કાલની સવારનું હવામાન (સવારે 6:00 થી 12:00)';
+    labelHi = 'कल सुबह का मौसम (सुबह 6:00 से 12:00)';
+    labelEn = 'Morning Weather Forecast (6:00 AM - 12:00 PM)';
+    timePeriodGu = 'કાલે સવારે (06:00 થી 12:00)';
+    timePeriodHi = 'कल सुबह (06:00 से 12:00)';
+    timePeriodEn = 'tomorrow morning (6:00 AM to 12:00 PM)';
+    isSpecificRange = true;
+  } else if (timeRange === 'afternoon' || (specificTimeRange && specificTimeRange.startHour === 12)) {
+    startH = 12;
+    endH = 17;
+    labelGu = 'કાલની બપોરનું હવામાન (બપોરે 12:00 થી 5:00)';
+    labelHi = 'कल दोपहर का मौसम (दोपहर 12:00 से 5:00)';
+    labelEn = 'Afternoon Weather Forecast (12:00 PM - 5:00 PM)';
+    timePeriodGu = 'કાલે બપોરે (12:00 થી 05:00)';
+    timePeriodHi = 'कल दोपहर (12:00 से 05:00)';
+    timePeriodEn = 'tomorrow afternoon (12:00 PM to 5:00 PM)';
+    isSpecificRange = true;
+  } else if (timeRange === 'evening' || (specificTimeRange && specificTimeRange.startHour === 17)) {
+    startH = 17;
+    endH = 21;
+    labelGu = 'કાલની સાંજનું હવામાન (સાંજે 5:00 થી 9:00)';
+    labelHi = 'कल शाम का मौसम (शाम 5:00 से 9:00)';
+    labelEn = 'Evening Weather Forecast (5:00 PM - 9:00 PM)';
+    timePeriodGu = 'કાલે સાંજે (05:00 થી 09:00)';
+    timePeriodHi = 'कल शाम (05:00 से 09:00)';
+    timePeriodEn = 'tomorrow evening (5:00 PM to 9:00 PM)';
+    isSpecificRange = true;
+  } else if (timeRange === 'night' || (specificTimeRange && specificTimeRange.startHour === 21)) {
+    startH = 21;
+    endH = 23;
+    labelGu = 'કાલની રાતનું હવામાન (રાત્રે 9:00 થી સવારે 6:00)';
+    labelHi = 'कल रात का मौसम (रात 9:00 से सुबह 6:00)';
+    labelEn = 'Night Weather Forecast (9:00 PM - 6:00 AM)';
+    timePeriodGu = 'કાલે રાત્રે (09:00 થી 06:00)';
+    timePeriodHi = 'कल रात (09:00 से 06:00)';
+    timePeriodEn = 'tomorrow night (9:00 PM to 6:00 AM)';
+    isSpecificRange = true;
+  }
+
+  const matchingHours = (weatherData.hourly || []).filter((h) => {
+    if (!h.time.startsWith(targetDateStr)) return false;
+    const dateObj = new Date(h.time);
+    const hour = dateObj.getHours();
+    return hour >= startH && hour <= endH;
+  });
+
+  if (matchingHours.length === 0) {
+    const defaultMaxTemp = Math.round(weatherData.daily[0]?.temperatureMax || weatherData.current.temperature);
+    const defaultMinTemp = Math.round(weatherData.daily[0]?.temperatureMin || (weatherData.current.temperature - 4));
+    return {
+      labelGu,
+      labelHi,
+      labelEn,
+      maxTemp: defaultMaxTemp,
+      minTemp: defaultMinTemp,
+      maxRainProb: weatherData.current.rainProbability || 0,
+      totalRainMm: 0,
+      avgWind: Math.round(weatherData.current.windSpeed),
+      condition: weatherData.current.condition,
+      isSpecificRange,
+      timePeriodGu,
+      timePeriodHi,
+      timePeriodEn
+    };
+  }
+
+  let maxTemp = -Infinity;
+  let minTemp = Infinity;
+  let maxRainProb = 0;
+  let totalRainMm = 0;
+  let totalWind = 0;
+  let worstCondition = matchingHours[0].condition;
+
+  for (const h of matchingHours) {
+    if (h.temperature > maxTemp) maxTemp = h.temperature;
+    if (h.temperature < minTemp) minTemp = h.temperature;
+    if (h.precipitationProbability > maxRainProb) {
+      maxRainProb = h.precipitationProbability;
+      worstCondition = h.condition;
+    }
+    totalRainMm += h.precipitationAmount;
+    totalWind += h.windSpeed;
+  }
+
+  return {
+    labelGu,
+    labelHi,
+    labelEn,
+    maxTemp: Math.round(maxTemp),
+    minTemp: Math.round(minTemp),
+    maxRainProb,
+    totalRainMm: Math.round(totalRainMm * 10) / 10,
+    avgWind: Math.round(totalWind / matchingHours.length),
+    condition: worstCondition,
+    isSpecificRange,
+    timePeriodGu,
+    timePeriodHi,
+    timePeriodEn
+  };
+}
+
 export class LLMService {
   async parseNLU(question: string, locationContext?: LocationInput): Promise<ParsedNLU> {
     const qLower = question.toLowerCase();
 
-    // Check if query is in Gujarati / Hinglish Gujarati
     const isGujaratiQuery =
       /[\u0A80-\u0AFF]/.test(question) ||
       /\b(?:kale|aaje|varsad|padse|hase|nai|ke|sanje|savare|bapore|ma|mein)\b/i.test(question);
@@ -138,7 +273,6 @@ Extract JSON:
   private heuristicNLU(question: string): ParsedNLU {
     const qLower = question.toLowerCase();
 
-    // Intent detection
     let intent: ParsedNLU['intent'] = 'general_forecast';
     if (/rain|varsad|बारिश|મழை|મજ્હા|મળ|પાણી|વરસાદ|chances of rain|umbrella/i.test(question)) {
       intent = 'rain_forecast';
@@ -148,7 +282,6 @@ Extract JSON:
       intent = 'temperature';
     }
 
-    // Date detection
     let targetDate: ParsedNLU['targetDate'] = 'today';
     if (/tomorrow|kale|કાલે|कल/i.test(question)) {
       targetDate = 'tomorrow';
@@ -156,7 +289,6 @@ Extract JSON:
       targetDate = 'today';
     }
 
-    // Time range detection
     let timeRange: ParsedNLU['timeRange'] = 'all_day';
     let specificTimeRange: ParsedNLU['specificTimeRange'] = undefined;
 
@@ -174,13 +306,11 @@ Extract JSON:
       specificTimeRange = { startHour: 21, endHour: 23 };
     }
 
-    // Language detection
     const isGujaratiQuery =
       /[\u0A80-\u0AFF]/.test(question) ||
       /\b(?:kale|aaje|varsad|padse|hase|nai|ke|sanje|savare|bapore|ma|mein)\b/i.test(question);
     const language = isGujaratiQuery ? 'gu' : (/[a-zA-Z]/.test(question) ? 'en' : 'hi');
 
-    // Location extraction heuristic
     let locationName: string | undefined = undefined;
 
     const knownCities = [
@@ -257,6 +387,7 @@ Location: ${weatherData.location.name}, ${weatherData.location.state || ''} ${we
 Local Timezone: ${tz}
 Current Local Date & Time: ${localNow}
 Target Forecast Date: ${targetDateStr}
+Target Time Window Requested: ${nlu.timeRange || 'full_day'} (${nlu.specificTimeRange ? `hours ${nlu.specificTimeRange.startHour} to ${nlu.specificTimeRange.endHour}` : 'all day'})
 
 Live Weather Context:
 - Current Temperature: ${weatherData.current.temperature}°C (Feels like ${weatherData.current.apparentTemperature}°C)
@@ -273,6 +404,7 @@ Precipitation / Rain Forecast Analysis for target window (${targetDateStr}):
 - Peak Time Window: ${rainAnalysis.peakRainTimeWindow || 'N/A'}
 
 Synthesize a clear, concise, accurate answer answering the user's exact question in ${nlu.language}.
+If the user explicitly asks for MORNING, AFTERNOON, EVENING, or NIGHT, give specific metrics for that exact time window.
 Follow all rules of WeatherGPT system prompt.
 `;
 
@@ -306,65 +438,65 @@ Follow all rules of WeatherGPT system prompt.
       /[\u0A80-\u0AFF]/.test(question) ||
       /\b(?:kale|aaje|varsad|padse|hase|nai|ke|sanje|savare|bapore|ma|mein)\b/i.test(question);
     const isHindi = !isGujarati && (nlu.language === 'hi' || nlu.language === 'hinglish');
-    const isRainQuestion = nlu.intent === 'rain_forecast' || nlu.intent === 'advisory';
 
-    const gujaratiDateLabel = formatGujaratiDate(targetDateStr);
-    const gujaratiTimeLabel = formatGujaratiTimeWindow(rainAnalysis.peakRainTimeWindow);
+    const stats = getTimeRangeStats(weatherData, targetDateStr, nlu.timeRange, nlu.specificTimeRange);
 
-    const maxTemp = Math.round(weatherData.daily[0]?.temperatureMax || weatherData.current.temperature);
-    const minTemp = Math.round(weatherData.daily[0]?.temperatureMin || (weatherData.current.temperature - 4));
-    const rainProb = rainAnalysis.maxRainProbability;
-    const rainAmount = rainAnalysis.totalRainAmountMm;
-    const windSpeed = Math.round(weatherData.current.windSpeed);
+    const maxTemp = stats.maxTemp;
+    const minTemp = stats.minTemp;
+    const rainProb = stats.maxRainProb;
+    const rainAmount = stats.totalRainMm;
+    const windSpeed = stats.avgWind;
 
     if (isGujarati) {
-      const gujCond = translateConditionToGujarati(weatherData.current.condition);
+      const gujCond = translateConditionToGujarati(stats.condition);
 
       let summaryHeading = '';
       let rainText = '';
       if (rainProb >= 60) {
-        summaryHeading = `હા, ${gujaratiDateLabel} ${loc} માં હળવાથી મધ્યમ વરસાદની સંભાવના છે. ખાસ કરીને ${gujaratiTimeLabel} દરમ્યાન વાતાવરણ વરસાદી રહેશે.`;
+        summaryHeading = `હા, ${stats.timePeriodGu} ${loc} માં હળવાથી મધ્યમ વરસાદની સંભાવના છે.`;
         rainText = `હળવાથી મધ્યમ વરસાદ (${rainProb}% સંભાવના, ~${rainAmount} mm)`;
       } else if (rainProb >= 30) {
-        summaryHeading = `હા, ${gujaratiDateLabel} ${loc} માં હળવા વરસાદના છૂટાછવાયા ઝાપટાં પડવાની શક્યતા છે.`;
+        summaryHeading = `હા, ${stats.timePeriodGu} ${loc} માં હળવા વરસાદના છૂટાછવાયા ઝાપટાં પડવાની શક્યતા છે.`;
         rainText = `હળવા ઝાપટાં શક્ય (${rainProb}% સંભાવના)`;
       } else {
-        summaryHeading = `${loc} માં ${gujaratiDateLabel} ના રોજ વરસાદની શક્યતા ખૂબ જ ઓછી (${rainProb}%) છે. વાતાવરણ મુખ્યત્વે સાફ કે અંશતઃ વાદળછાયું રહેશે.`;
+        summaryHeading = `${loc} માં ${stats.timePeriodGu} વાતાવરણ સાફ અને અનુકૂળ રહેશે. વરસાદની શક્યતા ખૂબ જ ઓછી (${rainProb}%) છે.`;
         rainText = `નહિવત / વરસાદની ઓછી શક્યતા (${rainProb}%)`;
       }
 
+      const tempLabel = 'તાપમાન';
+
       return `${summaryHeading}
 
-**${loc} – કાલનું હવામાન (${gujaratiDateLabel})**
+**${loc} – ${stats.labelGu}**
 🌧️ **વરસાદ**: ${rainText}
 🌤️ **આકાશ**: ${gujCond}
-🌡️ **તાપમાન**: ${minTemp}°C થી ${maxTemp}°C
+🌡️ **${tempLabel}**: ${minTemp}°C થી ${maxTemp}°C
 💨 **પવન**: આશરે ${windSpeed} km/h (ભેજ: ${weatherData.current.humidity}%)
 
 — *India Meteorological Department (IMD) / MoES Data*
 
-💡 *જો તમારે સવારે, બપોરે કે સાંજે કયા સમયે વરસાદ આવવાની સૌથી વધુ શક્યતા છે તેની કલાકવાર (hourly) માહિતી જોઈએ, તો તમે પૂછી શકો છો.*`;
+💡 *જો તમારે બપોરે કે સાંજે કયા સમયે હવામાન કેવું રહેશે તેની કલાકવાર (hourly) વિગત જોઈએ, તો તમે પૂછી શકો છો.*`;
     }
 
     if (isHindi) {
-      const hiCond = translateConditionToHindi(weatherData.current.condition);
+      const hiCond = translateConditionToHindi(stats.condition);
 
       let summaryHeading = '';
       let rainText = '';
       if (rainProb >= 60) {
-        summaryHeading = `हां, ${targetDateStr} को ${loc} में हल्की से मध्यम बारिश की संभावना है। विशेष रूप से शाम के समय बारिश हो सकती है।`;
+        summaryHeading = `हां, ${stats.timePeriodHi} ${loc} में हल्की से मध्यम बारिश की संभावना है।`;
         rainText = `मध्यम बारिश (${rainProb}% संभावना, ~${rainAmount} mm)`;
       } else if (rainProb >= 30) {
-        summaryHeading = `हां, ${targetDateStr} को ${loc} में हल्की बूंदाबांदी की संभावना (${rainProb}%) है।`;
+        summaryHeading = `हां, ${stats.timePeriodHi} ${loc} में हल्की बूंदाबांदी की संभावना (${rainProb}%) है।`;
         rainText = `हल्की बूंदाबांदी संभव (${rainProb}% संभावना)`;
       } else {
-        summaryHeading = `${loc} में ${targetDateStr} को बारिश की संभावना कम (${rainProb}%) है। मौसम मुख्य रूप से साफ रहेगा।`;
+        summaryHeading = `${loc} में ${stats.timePeriodHi} मौसम साफ रहेगा। बारिश की संभावना कम (${rainProb}%) है।`;
         rainText = `कम संभावना (${rainProb}%)`;
       }
 
       return `${summaryHeading}
 
-**${loc} – कल का मौसम (${targetDateStr})**
+**${loc} – ${stats.labelHi}**
 🌧️ **बारिश**: ${rainText}
 🌤️ **आकाश**: ${hiCond}
 🌡️ **तापमान**: ${minTemp}°C से ${maxTemp}°C
@@ -372,34 +504,33 @@ Follow all rules of WeatherGPT system prompt.
 
 — *India Meteorological Department (IMD) / MoES Data*
 
-💡 *यदि आप सुबह, दोपहर या शाम का प्रति घंटे (Hourly Forecast) विवरण जानना चाहते हैं, तो पूछ सकते हैं!*`;
+💡 *यदि आप दोपहर या शाम का प्रति घंटे (Hourly Forecast) विवरण जानना चाहते हैं, तो पूछ सकते हैं!*`;
     }
 
-    // English Default
     let summaryHeading = '';
     let rainText = '';
     if (rainProb >= 60) {
-      summaryHeading = `Yes, there is a high chance of light to moderate rain in ${loc} on ${targetDateStr} (${rainProb}% chance).`;
+      summaryHeading = `Yes, there is a high chance of light to moderate rain in ${loc} ${stats.timePeriodEn} (${rainProb}% chance).`;
       rainText = `Light to Moderate Rain (${rainProb}% chance, ~${rainAmount} mm)`;
     } else if (rainProb >= 30) {
-      summaryHeading = `Yes, there is a moderate chance of light rain/showers in ${loc} on ${targetDateStr} (${rainProb}% chance).`;
+      summaryHeading = `Yes, there is a moderate chance of light rain/showers in ${loc} ${stats.timePeriodEn} (${rainProb}% chance).`;
       rainText = `Light Rain / Showers possible (${rainProb}% chance)`;
     } else {
-      summaryHeading = `Rain is unlikely in ${loc} on ${targetDateStr} (only ${rainProb}% probability).`;
+      summaryHeading = `Rain is unlikely in ${loc} ${stats.timePeriodEn} (only ${rainProb}% probability). Skies will be pleasant.`;
       rainText = `Unlikely (${rainProb}% chance)`;
     }
 
     return `${summaryHeading}
 
-**${loc} – Weather Forecast (${targetDateStr})**
+**${loc} – ${stats.labelEn}**
 🌧️ **Rain**: ${rainText}
-🌤️ **Sky**: ${weatherData.current.condition}
+🌤️ **Sky**: ${stats.condition}
 🌡️ **Temperature**: ${minTemp}°C to ${maxTemp}°C
 💨 **Wind**: ~${windSpeed} km/h (Humidity: ${weatherData.current.humidity}%)
 
 — *India Meteorological Department (IMD) / MoES Data*
 
-💡 *Would you like an hourly breakdown for morning, afternoon, or evening? Just ask!*`;
+💡 *Would you like an hourly breakdown for afternoon or evening? Just ask!*`;
   }
 }
 
