@@ -313,49 +313,93 @@ Follow all rules of WeatherGPT system prompt.
 
     const maxTemp = Math.round(weatherData.daily[0]?.temperatureMax || weatherData.current.temperature);
     const minTemp = Math.round(weatherData.daily[0]?.temperatureMin || (weatherData.current.temperature - 4));
+    const rainProb = rainAnalysis.maxRainProbability;
+    const rainAmount = rainAnalysis.totalRainAmountMm;
+    const windSpeed = Math.round(weatherData.current.windSpeed);
 
     if (isGujarati) {
       const gujCond = translateConditionToGujarati(weatherData.current.condition);
 
-      if (isRainQuestion) {
-        if (rainAnalysis.maxRainProbability >= 60) {
-          return `${loc} માં ${gujaratiDateLabel} ના રોજ વરસાદની શક્યતા ${rainAnalysis.maxRainProbability}% જેટલી ઉચ્ચ રહેવાની આગાહી છે. ખાસ કરીને ${gujaratiTimeLabel} દરમ્યાન ${rainAnalysis.totalRainAmountMm > 0 ? `${rainAnalysis.totalRainAmountMm} mm સુધી` : ''} વરસાદ પડી શકે છે. બહાર જતી વખતે છત્રી કે રેઇનકોટ સાથે રાખવાની સલાહ આપવામાં આવે છે. તાપમાન ${minTemp}°C થી ${maxTemp}°C વચ્ચે રહેશે અને ભેજનું પ્રમાણ ${weatherData.current.humidity}% રહેશે.`;
-        } else if (rainAnalysis.maxRainProbability >= 30) {
-          return `${loc} માં ${gujaratiDateLabel} ના રોજ વરસાદની મધ્યમ શક્યતા (${rainAnalysis.maxRainProbability}%) છે. વાતાવરણ ${gujCond} રહેશે અને ${gujaratiTimeLabel} ના સમયે હળવા ઝાપટાં પડી શકે છે. તાપમાન ${minTemp}°C થી ${maxTemp}°C વચ્ચે રહેવાનો અંદાજ છે (હાલનું તાપમાન ${Math.round(weatherData.current.temperature)}°C છે).`;
-        } else {
-          return `${loc} માં ${gujaratiDateLabel} ના રોજ વરસાદની શક્યતા ખૂબ જ નહિવત (${rainAnalysis.maxRainProbability}%) છે. વાતાવરણ મુખ્યત્વે ${gujCond} રહેશે. તાપમાન ${minTemp}°C થી ${maxTemp}°C વચ્ચે સામાન્ય રહેશે અને પવનની ઝડપ ${Math.round(weatherData.current.windSpeed)} km/h રહેશે.`;
-        }
+      let summaryHeading = '';
+      let rainText = '';
+      if (rainProb >= 60) {
+        summaryHeading = `હા, ${gujaratiDateLabel} ${loc} માં હળવાથી મધ્યમ વરસાદની સંભાવના છે. ખાસ કરીને ${gujaratiTimeLabel} દરમ્યાન વાતાવરણ વરસાદી રહેશે.`;
+        rainText = `હળવાથી મધ્યમ વરસાદ (${rainProb}% સંભાવના, ~${rainAmount} mm)`;
+      } else if (rainProb >= 30) {
+        summaryHeading = `હા, ${gujaratiDateLabel} ${loc} માં હળવા વરસાદના છૂટાછવાયા ઝાપટાં પડવાની શક્યતા છે.`;
+        rainText = `હળવા ઝાપટાં શક્ય (${rainProb}% સંભાવના)`;
+      } else {
+        summaryHeading = `${loc} માં ${gujaratiDateLabel} ના રોજ વરસાદની શક્યતા ખૂબ જ ઓછી (${rainProb}%) છે. વાતાવરણ મુખ્યત્વે સાફ કે અંશતઃ વાદળછાયું રહેશે.`;
+        rainText = `નહિવત / વરસાદની ઓછી શક્યતા (${rainProb}%)`;
       }
-      return `${loc} માં હાલનું તાપમાન ${Math.round(weatherData.current.temperature)}°C (અનુભવાતું તાપમાન ${Math.round(weatherData.current.apparentTemperature)}°C) છે અને વાતાવરણ ${gujCond} છે. ${gujaratiDateLabel} ના રોજ દિવસનું મહત્તમ તાપમાન ${maxTemp}°C અને લઘુત્તમ તાપમાન ${minTemp}°C રહેશે. ભેજનું પ્રમાણ ${weatherData.current.humidity}% અને પવનની ગતિ ${Math.round(weatherData.current.windSpeed)} km/h નોંધાયેલ છે.`;
+
+      return `${summaryHeading}
+
+**${loc} – કાલનું હવામાન (${gujaratiDateLabel})**
+🌧️ **વરસાદ**: ${rainText}
+🌤️ **આકાશ**: ${gujCond}
+🌡️ **તાપમાન**: ${minTemp}°C થી ${maxTemp}°C
+💨 **પવન**: આશરે ${windSpeed} km/h (ભેજ: ${weatherData.current.humidity}%)
+
+— *India Meteorological Department (IMD) / MoES Data*
+
+💡 *જો તમારે સવારે, બપોરે કે સાંજે કયા સમયે વરસાદ આવવાની સૌથી વધુ શક્યતા છે તેની કલાકવાર (hourly) માહિતી જોઈએ, તો તમે પૂછી શકો છો.*`;
     }
 
     if (isHindi) {
       const hiCond = translateConditionToHindi(weatherData.current.condition);
 
-      if (isRainQuestion) {
-        if (rainAnalysis.maxRainProbability >= 60) {
-          return `${loc} में ${targetDateStr} को बारिश की उच्च संभावना ${rainAnalysis.maxRainProbability}% है (${rainAnalysis.peakRainTimeWindow || 'विशेष रूप से शाम के समय'}). अनुमानित बारिश ${rainAnalysis.totalRainAmountMm} mm हो सकती है। बाहर निकलते समय छाता या रेनकोट साथ रखें। तापमान ${minTemp}°C से ${maxTemp}°C के बीच रहेगा।`;
-        } else if (rainAnalysis.maxRainProbability >= 30) {
-          return `${loc} में ${targetDateStr} को मध्यम बारिश की संभावना (${rainAnalysis.maxRainProbability}%) है। मौसम ${hiCond} रहेगा और तापमान ${minTemp}°C से ${maxTemp}°C के बीच रहने का अनुमान है।`;
-        } else {
-          return `${loc} में ${targetDateStr} को बारिश की संभावना कम (${rainAnalysis.maxRainProbability}%) है। मौसम मुख्य रूप से ${hiCond} रहेगा और तापमान ${maxTemp}°C तक जाएगा।`;
-        }
+      let summaryHeading = '';
+      let rainText = '';
+      if (rainProb >= 60) {
+        summaryHeading = `हां, ${targetDateStr} को ${loc} में हल्की से मध्यम बारिश की संभावना है। विशेष रूप से शाम के समय बारिश हो सकती है।`;
+        rainText = `मध्यम बारिश (${rainProb}% संभावना, ~${rainAmount} mm)`;
+      } else if (rainProb >= 30) {
+        summaryHeading = `हां, ${targetDateStr} को ${loc} में हल्की बूंदाबांदी की संभावना (${rainProb}%) है।`;
+        rainText = `हल्की बूंदाबांदी संभव (${rainProb}% संभावना)`;
+      } else {
+        summaryHeading = `${loc} में ${targetDateStr} को बारिश की संभावना कम (${rainProb}%) है। मौसम मुख्य रूप से साफ रहेगा।`;
+        rainText = `कम संभावना (${rainProb}%)`;
       }
-      return `${loc} में वर्तमान तापमान ${Math.round(weatherData.current.temperature)}°C है और मौसम ${hiCond} है। ${targetDateStr} को अधिकतम तापमान ${maxTemp}°C और न्यूनतम ${minTemp}°C रहने की उम्मीद है। आर्द्रता ${weatherData.current.humidity}% और हवा की गति ${Math.round(weatherData.current.windSpeed)} km/h है।`;
+
+      return `${summaryHeading}
+
+**${loc} – कल का मौसम (${targetDateStr})**
+🌧️ **बारिश**: ${rainText}
+🌤️ **आकाश**: ${hiCond}
+🌡️ **तापमान**: ${minTemp}°C से ${maxTemp}°C
+💨 **हवा**: लगभग ${windSpeed} km/h (आर्द्रता: ${weatherData.current.humidity}%)
+
+— *India Meteorological Department (IMD) / MoES Data*
+
+💡 *यदि आप सुबह, दोपहर या शाम का प्रति घंटे (Hourly Forecast) विवरण जानना चाहते हैं, तो पूछ सकते हैं!*`;
     }
 
     // English Default
-    if (isRainQuestion) {
-      if (rainAnalysis.maxRainProbability >= 60) {
-        return `Yes, there is a high probability of rain in ${loc} on ${targetDateStr} (${rainAnalysis.maxRainProbability}% peak chance ${rainAnalysis.peakRainTimeWindow || 'in the evening'}). Expected precipitation is around ${rainAnalysis.totalRainAmountMm} mm. Temperatures will range from ${minTemp}°C to ${maxTemp}°C with humidity at ${weatherData.current.humidity}%. Carrying rain gear is strongly advised!`;
-      } else if (rainAnalysis.maxRainProbability >= 30) {
-        return `There is a moderate chance of rain in ${loc} on ${targetDateStr} (${rainAnalysis.maxRainProbability}% chance). Expected precipitation is ${rainAnalysis.totalRainAmountMm} mm, with temperatures hovering between ${minTemp}°C and ${maxTemp}°C under ${weatherData.current.condition} skies.`;
-      } else {
-        return `Rain is unlikely in ${loc} on ${targetDateStr} (only ${rainAnalysis.maxRainProbability}% probability). Conditions will remain mostly ${weatherData.current.condition} with temperatures between ${minTemp}°C and ${maxTemp}°C and wind speeds averaging ${Math.round(weatherData.current.windSpeed)} km/h.`;
-      }
+    let summaryHeading = '';
+    let rainText = '';
+    if (rainProb >= 60) {
+      summaryHeading = `Yes, there is a high chance of light to moderate rain in ${loc} on ${targetDateStr} (${rainProb}% chance).`;
+      rainText = `Light to Moderate Rain (${rainProb}% chance, ~${rainAmount} mm)`;
+    } else if (rainProb >= 30) {
+      summaryHeading = `Yes, there is a moderate chance of light rain/showers in ${loc} on ${targetDateStr} (${rainProb}% chance).`;
+      rainText = `Light Rain / Showers possible (${rainProb}% chance)`;
+    } else {
+      summaryHeading = `Rain is unlikely in ${loc} on ${targetDateStr} (only ${rainProb}% probability).`;
+      rainText = `Unlikely (${rainProb}% chance)`;
     }
 
-    return `The current live weather in ${loc} is ${weatherData.current.condition} with a temperature of ${Math.round(weatherData.current.temperature)}°C (feels like ${Math.round(weatherData.current.apparentTemperature)}°C). Forecast for ${targetDateStr}: High of ${maxTemp}°C, low of ${minTemp}°C, humidity ${weatherData.current.humidity}%, and wind speed ${Math.round(weatherData.current.windSpeed)} km/h.`;
+    return `${summaryHeading}
+
+**${loc} – Weather Forecast (${targetDateStr})**
+🌧️ **Rain**: ${rainText}
+🌤️ **Sky**: ${weatherData.current.condition}
+🌡️ **Temperature**: ${minTemp}°C to ${maxTemp}°C
+💨 **Wind**: ~${windSpeed} km/h (Humidity: ${weatherData.current.humidity}%)
+
+— *India Meteorological Department (IMD) / MoES Data*
+
+💡 *Would you like an hourly breakdown for morning, afternoon, or evening? Just ask!*`;
   }
 }
 
