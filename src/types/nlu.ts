@@ -20,7 +20,7 @@ export interface ParsedNLU {
   intent: WeatherIntent;
   locationName?: string;
   isLocationNeeded: boolean;
-  targetDate?: 'today' | 'tomorrow' | 'specific_date' | 'next_3_days';
+  targetDate?: 'today' | 'tomorrow' | 'day_after_tomorrow' | 'day_after_next' | 'specific_date' | 'next_3_days';
   specificDateStr?: string; // YYYY-MM-DD
   timeRange?: 'current' | 'morning' | 'afternoon' | 'evening' | 'night' | 'specific_hours' | 'all_day';
   specificTimeRange?: {

@@ -226,6 +226,23 @@ describe('POST /api/ask - Natural Language Weather Queries', () => {
       expect(res.body.location.name).toMatch(/Rajkot/i);
     });
 
+    it('Should correctly parse Gujarati query with "paramdivas" (day after tomorrow)', async () => {
+      jest.spyOn(geocodingService, 'geocode').mockResolvedValueOnce({
+        success: true,
+        location: mockRajkotData.location,
+        isAmbiguous: false
+      });
+      jest.spyOn(openMeteoProvider, 'getWeatherData').mockResolvedValueOnce(mockRajkotData);
+
+      const res = await request(app)
+        .post('/api/ask')
+        .send({ question: 'Rajkot ma paramdivas varsad hase ke nai' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.answer).toMatch(/પરમદિવસે|પરમ દિવસનું/);
+    });
+
   // Test 10: Explicit latitude/longitude request
   it('10. Should accept explicit latitude and longitude coordinates in request body', async () => {
     jest.spyOn(openMeteoProvider, 'getWeatherData').mockResolvedValueOnce(mockWeatherData);
@@ -247,3 +264,4 @@ describe('POST /api/ask - Natural Language Weather Queries', () => {
     expect(res.body.location.longitude).toBe(70.8377);
   });
 });
+

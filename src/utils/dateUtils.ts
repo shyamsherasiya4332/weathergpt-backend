@@ -25,7 +25,11 @@ export function getCurrentTimeInTimezone(timezone: string): string {
   }
 }
 
-export function getRelativeDateString(targetDate: 'today' | 'tomorrow' | 'specific_date' | 'next_3_days', timezone: string, specificDate?: string): string {
+export function getRelativeDateString(
+  targetDate: 'today' | 'tomorrow' | 'day_after_tomorrow' | 'day_after_next' | 'specific_date' | 'next_3_days' | string,
+  timezone: string,
+  specificDate?: string
+): string {
   const now = new Date();
   const todayStr = getFormattedDateInTimezone(now, timezone);
 
@@ -37,6 +41,18 @@ export function getRelativeDateString(targetDate: 'today' | 'tomorrow' | 'specif
     const tomorrow = new Date(now);
     tomorrow.setDate(tomorrow.getDate() + 1);
     return getFormattedDateInTimezone(tomorrow, timezone);
+  }
+
+  if (targetDate === 'day_after_tomorrow') {
+    const dayAfter = new Date(now);
+    dayAfter.setDate(dayAfter.getDate() + 2);
+    return getFormattedDateInTimezone(dayAfter, timezone);
+  }
+
+  if (targetDate === 'day_after_next') {
+    const dayAfterNext = new Date(now);
+    dayAfterNext.setDate(dayAfterNext.getDate() + 3);
+    return getFormattedDateInTimezone(dayAfterNext, timezone);
   }
 
   if (targetDate === 'specific_date' && specificDate) {

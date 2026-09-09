@@ -2,24 +2,38 @@ import { WEATHER_GPT_SYSTEM_PROMPT } from '../../prompts/weatherPrompt.js';
 import { LocationInput } from '../../types/api.js';
 import { ParsedNLU } from '../../types/nlu.js';
 import { RainAnalysisResult, WeatherData } from '../../types/weather.js';
-import { getCurrentTimeInTimezone, getRelativeDateString } from '../../utils/dateUtils.js';
+import { getCurrentTimeInTimezone, getFormattedDateInTimezone, getRelativeDateString } from '../../utils/dateUtils.js';
 import { logger } from '../../utils/logger.js';
 import { openAIClient } from './openaiClient.js';
 
-function formatGujaratiDate(isoDateStr: string): string {
+function formatGujaratiDate(isoDateStr: string, timezone: string = 'Asia/Kolkata'): string {
   const parts = isoDateStr.split('-');
   if (parts.length !== 3) return isoDateStr;
   const formattedDdMmYyyy = `${parts[2]}-${parts[1]}-${parts[0]}`;
 
-  const todayStr = new Date().toISOString().split('T')[0];
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const tomorrowStr = tomorrow.toISOString().split('T')[0];
+  const now = new Date();
+  const todayStr = getFormattedDateInTimezone(now, timezone);
+
+  const tmr = new Date(now);
+  tmr.setDate(tmr.getDate() + 1);
+  const tomorrowStr = getFormattedDateInTimezone(tmr, timezone);
+
+  const dayAfter = new Date(now);
+  dayAfter.setDate(dayAfter.getDate() + 2);
+  const dayAfterTomorrowStr = getFormattedDateInTimezone(dayAfter, timezone);
+
+  const dayAfterNext = new Date(now);
+  dayAfterNext.setDate(dayAfterNext.getDate() + 3);
+  const dayAfterNextStr = getFormattedDateInTimezone(dayAfterNext, timezone);
 
   if (isoDateStr === todayStr) {
     return `આજે (${formattedDdMmYyyy})`;
   } else if (isoDateStr === tomorrowStr) {
     return `કાલે (${formattedDdMmYyyy})`;
+  } else if (isoDateStr === dayAfterTomorrowStr) {
+    return `પરમદિવસે (${formattedDdMmYyyy})`;
+  } else if (isoDateStr === dayAfterNextStr) {
+    return `તર-પરમદિવસે (${formattedDdMmYyyy})`;
   } else {
     return `તારીખ ${formattedDdMmYyyy}`;
   }
@@ -107,53 +121,112 @@ export function getTimeRangeStats(
 ): TimeRangeStats {
   let startH = 0;
   let endH = 23;
-  let labelGu = 'કાલનું હવામાન';
-  let labelHi = 'कल का मौसम';
-  let labelEn = 'Weather Forecast';
-  let timePeriodGu = 'કાલે';
-  let timePeriodHi = 'कल';
-  let timePeriodEn = 'tomorrow';
+
+  const tz = weatherData.location.timezone || 'Asia/Kolkata';
+  const now = new Date();
+  const todayStr = getFormattedDateInTimezone(now, tz);
+
+  const tmr = new Date(now);
+  tmr.setDate(tmr.getDate() + 1);
+  const tomorrowStr = getFormattedDateInTimezone(tmr, tz);
+
+  const dayAfter = new Date(now);
+  dayAfter.setDate(dayAfter.getDate() + 2);
+  const dayAfterTomorrowStr = getFormattedDateInTimezone(dayAfter, tz);
+
+  const dayAfterNext = new Date(now);
+  dayAfterNext.setDate(dayAfterNext.getDate() + 3);
+  const dayAfterNextStr = getFormattedDateInTimezone(dayAfterNext, tz);
+
+  const parts = targetDateStr.split('-');
+  const formattedDdMmYyyy = parts.length === 3 ? `${parts[2]}-${parts[1]}-${parts[0]}` : targetDateStr;
+
+  let baseDateLabelGu = `તારીખ ${formattedDdMmYyyy} નું હવામાન`;
+  let baseDateLabelHi = `तारीख ${formattedDdMmYyyy} का मौसम`;
+  let baseDateLabelEn = `Weather Forecast for ${formattedDdMmYyyy}`;
+
+  let basePeriodGu = `તારીખ ${formattedDdMmYyyy} ના રોજ`;
+  let basePeriodHi = `तारीख ${formattedDdMmYyyy} को`;
+  let basePeriodEn = `on ${formattedDdMmYyyy}`;
+
+  if (targetDateStr === todayStr) {
+    baseDateLabelGu = `આજનું હવામાન (${formattedDdMmYyyy})`;
+    baseDateLabelHi = `आज का मौसम (${formattedDdMmYyyy})`;
+    baseDateLabelEn = `Today's Weather (${formattedDdMmYyyy})`;
+    basePeriodGu = `આજે (${formattedDdMmYyyy})`;
+    basePeriodHi = `आज (${formattedDdMmYyyy})`;
+    basePeriodEn = `today (${formattedDdMmYyyy})`;
+  } else if (targetDateStr === tomorrowStr) {
+    baseDateLabelGu = `કાલનું હવામાન (${formattedDdMmYyyy})`;
+    baseDateLabelHi = `कल का मौसम (${formattedDdMmYyyy})`;
+    baseDateLabelEn = `Tomorrow's Weather (${formattedDdMmYyyy})`;
+    basePeriodGu = `કાલે (${formattedDdMmYyyy})`;
+    basePeriodHi = `कल (${formattedDdMmYyyy})`;
+    basePeriodEn = `tomorrow (${formattedDdMmYyyy})`;
+  } else if (targetDateStr === dayAfterTomorrowStr) {
+    baseDateLabelGu = `પરમ દિવસનું હવામાન (${formattedDdMmYyyy})`;
+    baseDateLabelHi = `परसों का मौसम (${formattedDdMmYyyy})`;
+    baseDateLabelEn = `Day After Tomorrow Weather (${formattedDdMmYyyy})`;
+    basePeriodGu = `પરમદિવસે (${formattedDdMmYyyy})`;
+    basePeriodHi = `परसों (${formattedDdMmYyyy})`;
+    basePeriodEn = `day after tomorrow (${formattedDdMmYyyy})`;
+  } else if (targetDateStr === dayAfterNextStr) {
+    baseDateLabelGu = `તર-પરમ દિવસનું હવામાન (${formattedDdMmYyyy})`;
+    baseDateLabelHi = `तर-परसों का मौसम (${formattedDdMmYyyy})`;
+    baseDateLabelEn = `3-Day Forecast (${formattedDdMmYyyy})`;
+    basePeriodGu = `તર-પરમદિવસે (${formattedDdMmYyyy})`;
+    basePeriodHi = `तर-परसों (${formattedDdMmYyyy})`;
+    basePeriodEn = `in 3 days (${formattedDdMmYyyy})`;
+  }
+
+  let labelGu = baseDateLabelGu;
+  let labelHi = baseDateLabelHi;
+  let labelEn = baseDateLabelEn;
+
+  let timePeriodGu = basePeriodGu;
+  let timePeriodHi = basePeriodHi;
+  let timePeriodEn = basePeriodEn;
   let isSpecificRange = false;
 
   if (timeRange === 'morning' || (specificTimeRange && specificTimeRange.startHour === 6)) {
     startH = 6;
     endH = 12;
-    labelGu = 'કાલની સવારનું હવામાન (સવારે 6:00 થી 12:00)';
-    labelHi = 'कल सुबह का मौसम (सुबह 6:00 से 12:00)';
-    labelEn = 'Morning Weather Forecast (6:00 AM - 12:00 PM)';
-    timePeriodGu = 'કાલે સવારે (06:00 થી 12:00)';
-    timePeriodHi = 'कल सुबह (06:00 से 12:00)';
-    timePeriodEn = 'tomorrow morning (6:00 AM to 12:00 PM)';
+    labelGu = `${basePeriodGu} સવારનું હવામાન (સવારે 6:00 થી 12:00)`;
+    labelHi = `${basePeriodHi} सुबह का मौसम (सुबह 6:00 से 12:00)`;
+    labelEn = `Morning Weather Forecast ${basePeriodEn} (6:00 AM - 12:00 PM)`;
+    timePeriodGu = `${basePeriodGu} સવારે (06:00 થી 12:00)`;
+    timePeriodHi = `${basePeriodHi} सुबह (06:00 से 12:00)`;
+    timePeriodEn = `${basePeriodEn} morning (6:00 AM to 12:00 PM)`;
     isSpecificRange = true;
   } else if (timeRange === 'afternoon' || (specificTimeRange && specificTimeRange.startHour === 12)) {
     startH = 12;
     endH = 17;
-    labelGu = 'કાલની બપોરનું હવામાન (બપોરે 12:00 થી 5:00)';
-    labelHi = 'कल दोपहर का मौसम (दोपहर 12:00 से 5:00)';
-    labelEn = 'Afternoon Weather Forecast (12:00 PM - 5:00 PM)';
-    timePeriodGu = 'કાલે બપોરે (12:00 થી 05:00)';
-    timePeriodHi = 'कल दोपहर (12:00 से 05:00)';
-    timePeriodEn = 'tomorrow afternoon (12:00 PM to 5:00 PM)';
+    labelGu = `${basePeriodGu} બપોરનું હવામાન (બપોરે 12:00 થી 5:00)`;
+    labelHi = `${basePeriodHi} दोपहर का मौसम (दोपहर 12:00 से 5:00)`;
+    labelEn = `Afternoon Weather Forecast ${basePeriodEn} (12:00 PM - 5:00 PM)`;
+    timePeriodGu = `${basePeriodGu} બપોરે (12:00 થી 05:00)`;
+    timePeriodHi = `${basePeriodHi} दोपहर (12:00 से 05:00)`;
+    timePeriodEn = `${basePeriodEn} afternoon (12:00 PM to 5:00 PM)`;
     isSpecificRange = true;
   } else if (timeRange === 'evening' || (specificTimeRange && specificTimeRange.startHour === 17)) {
     startH = 17;
     endH = 21;
-    labelGu = 'કાલની સાંજનું હવામાન (સાંજે 5:00 થી 9:00)';
-    labelHi = 'कल शाम का मौसम (शाम 5:00 से 9:00)';
-    labelEn = 'Evening Weather Forecast (5:00 PM - 9:00 PM)';
-    timePeriodGu = 'કાલે સાંજે (05:00 થી 09:00)';
-    timePeriodHi = 'कल शाम (05:00 से 09:00)';
-    timePeriodEn = 'tomorrow evening (5:00 PM to 9:00 PM)';
+    labelGu = `${basePeriodGu} સાંજનું હવામાન (સાંજે 5:00 થી 9:00)`;
+    labelHi = `${basePeriodHi} शाम का मौसम (शाम 5:00 से 9:00)`;
+    labelEn = `Evening Weather Forecast ${basePeriodEn} (5:00 PM - 9:00 PM)`;
+    timePeriodGu = `${basePeriodGu} સાંજે (05:00 થી 09:00)`;
+    timePeriodHi = `${basePeriodHi} शाम (05:00 से 09:00)`;
+    timePeriodEn = `${basePeriodEn} evening (5:00 PM to 9:00 PM)`;
     isSpecificRange = true;
   } else if (timeRange === 'night' || (specificTimeRange && specificTimeRange.startHour === 21)) {
     startH = 21;
     endH = 23;
-    labelGu = 'કાલની રાતનું હવામાન (રાત્રે 9:00 થી સવારે 6:00)';
-    labelHi = 'कल रात का मौसम (रात 9:00 से सुबह 6:00)';
-    labelEn = 'Night Weather Forecast (9:00 PM - 6:00 AM)';
-    timePeriodGu = 'કાલે રાત્રે (09:00 થી 06:00)';
-    timePeriodHi = 'कल रात (09:00 से 06:00)';
-    timePeriodEn = 'tomorrow night (9:00 PM to 6:00 AM)';
+    labelGu = `${basePeriodGu} રાતનું હવામાન (રાત્રે 9:00 થી સવારે 6:00)`;
+    labelHi = `${basePeriodHi} रात का मौसम (रात 9:00 से सुबह 6:00)`;
+    labelEn = `Night Weather Forecast ${basePeriodEn} (9:00 PM - 6:00 AM)`;
+    timePeriodGu = `${basePeriodGu} રાત્રે (09:00 થી 06:00)`;
+    timePeriodHi = `${basePeriodHi} रात (09:00 से 06:00)`;
+    timePeriodEn = `${basePeriodEn} night (9:00 PM to 6:00 AM)`;
     isSpecificRange = true;
   }
 
@@ -225,7 +298,7 @@ export class LLMService {
 
     const isGujaratiQuery =
       /[\u0A80-\u0AFF]/.test(question) ||
-      /\b(?:kale|aaje|varsad|padse|hase|nai|ke|sanje|savare|bapore|ma|mein)\b/i.test(question);
+      /\b(?:kale|aaje|varsad|padse|hase|nai|ke|sanje|savare|bapore|ma|mein|paramdivas|paramdivase|peramdivas)\b/i.test(question);
 
     const prompt = `
 User Query: "${question}"
@@ -236,7 +309,7 @@ Extract JSON:
   "intent": "rain_forecast" | "current_weather" | "general_forecast" | "temperature" | "clothing" | "advisory" | "unknown",
   "locationName": string | null,
   "isLocationNeeded": boolean,
-  "targetDate": "today" | "tomorrow" | "specific_date" | null,
+  "targetDate": "today" | "tomorrow" | "day_after_tomorrow" | "day_after_next" | "specific_date" | null,
   "specificDateStr": "YYYY-MM-DD" | null,
   "timeRange": "full_day" | "morning" | "afternoon" | "evening" | "night" | "specific_hours" | null,
   "specificTimeRange": { "startHour": number, "endHour": number } | null,
@@ -283,7 +356,11 @@ Extract JSON:
     }
 
     let targetDate: ParsedNLU['targetDate'] = 'today';
-    if (/tomorrow|kale|કાલે|कल/i.test(question)) {
+    if (/tarparamdivas|tar\s*param\s*divas|તરપરમદિવસે|તર\s*પરમ\s*દિવસે|narson|narsong/i.test(question)) {
+      targetDate = 'day_after_next';
+    } else if (/paramdivas|paramdivase|param\s*divas|peramdivas|પરમદિવસે|પરમદિવસ|parso|parson|day after tomorrow/i.test(question)) {
+      targetDate = 'day_after_tomorrow';
+    } else if (/tomorrow|kale|કાલે|कल|kal\b/i.test(question)) {
       targetDate = 'tomorrow';
     } else if (/today|aaje|આજે|आज/i.test(question)) {
       targetDate = 'today';
