@@ -147,9 +147,10 @@ export class LLMService {
       }
     }
 
-    // Sanitize candidate location name: remove trailing stop-words
+    // Sanitize candidate location name: remove trailing stop-words & state names
     if (locationName) {
       locationName = locationName
+        .replace(/\b(?:gujarat|maharashtra|rajasthan|punjab|haryana|delhi|karnataka|kerala|tamilnadu|india|bharat)\b/gi, '')
         .replace(/\b(?:varsad|rain|weather|forecast|hoga|hogi|padse|hase|ke|nai|kya|aaje|kale|today|tomorrow|shyam|sanje|savare|temp|taapman)\b/gi, '')
         .trim();
       if (locationName.length === 0) {

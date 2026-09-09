@@ -43,7 +43,32 @@ export class OpenMeteoGeocodingProvider implements IGeocodingProvider {
         }
       );
 
-      const results = response.data.results;
+      let results = response.data.results;
+
+      // Fallback: If 0 results for multi-word queries like "Rajkot Gujarat", strip state/country names and retry
+      if (!results || results.length === 0) {
+        const cleanedName = trimmed
+          .replace(/\b(?:gujarat|maharashtra|rajasthan|punjab|haryana|delhi|karnataka|kerala|tamilnadu|tamil nadu|india|bharat)\b/gi, '')
+          .trim();
+
+        if (cleanedName && cleanedName.toLowerCase() !== trimmed.toLowerCase()) {
+          logger.info(`Geocoding fallback retry: '${trimmed}' -> '${cleanedName}'`);
+          const retryResponse = await axios.get<{ results?: OpenMeteoGeocodingItem[] }>(
+            `${env.GEOCODING_API_BASE_URL}/search`,
+            {
+              params: {
+                name: cleanedName,
+                count: 5,
+                language: 'en',
+                format: 'json'
+              },
+              timeout: 6000
+            }
+          );
+          results = retryResponse.data.results;
+        }
+      }
+
       if (!results || results.length === 0) {
         const notFoundResult: GeocodingResult = {
           success: false,
