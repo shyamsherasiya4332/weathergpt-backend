@@ -48,7 +48,7 @@ export class OpenMeteoGeocodingProvider implements IGeocodingProvider {
       // Fallback: If 0 results for multi-word queries like "Rajkot Gujarat", strip state/country names and retry
       if (!results || results.length === 0) {
         const cleanedName = trimmed
-          .replace(/\b(?:gujarat|maharashtra|rajasthan|punjab|haryana|delhi|karnataka|kerala|tamilnadu|tamil nadu|india|bharat)\b/gi, '')
+          .replace(/\b(?:gujarat|maharashtra|rajasthan|punjab|haryana|delhi|karnataka|kerala|tamilnadu|tamil nadu|andhra|telangana|west bengal|bengal|odisha|orissa|assam|bihar|jharkhand|chhattisgarh|madhya pradesh|uttar pradesh|uttarakhand|himachal|jammu|kashmir|ladakh|goa|tripura|meghalaya|manipur|nagaland|mizoram|sikkim|arunachal|puducherry|chandigarh|andaman|nicobar|lakshadweep|india|bharat)\b/gi, '')
           .trim();
 
         if (cleanedName && cleanedName.toLowerCase() !== trimmed.toLowerCase()) {
