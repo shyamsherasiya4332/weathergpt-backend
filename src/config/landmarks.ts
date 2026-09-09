@@ -111,6 +111,127 @@ export const LANDMARKS: LandmarkEntry[] = [
     }
   },
   {
+    aliases: ['morbi', 'morbi gujarat', 'morvi'],
+    location: {
+      name: 'Morbi',
+      latitude: 22.8173,
+      longitude: 70.8377,
+      state: 'Gujarat',
+      country: 'India',
+      timezone: 'Asia/Kolkata'
+    }
+  },
+  {
+    aliases: ['rajkot', 'rajkot gujarat'],
+    location: {
+      name: 'Rajkot',
+      latitude: 22.3039,
+      longitude: 70.8022,
+      state: 'Gujarat',
+      country: 'India',
+      timezone: 'Asia/Kolkata'
+    }
+  },
+  {
+    aliases: ['ahmedabad', 'ahmedabad gujarat', 'amdavad'],
+    location: {
+      name: 'Ahmedabad',
+      latitude: 23.0225,
+      longitude: 72.5714,
+      state: 'Gujarat',
+      country: 'India',
+      timezone: 'Asia/Kolkata'
+    }
+  },
+  {
+    aliases: ['surat', 'surat gujarat'],
+    location: {
+      name: 'Surat',
+      latitude: 21.1702,
+      longitude: 72.8311,
+      state: 'Gujarat',
+      country: 'India',
+      timezone: 'Asia/Kolkata'
+    }
+  },
+  {
+    aliases: ['vadodara', 'baroda', 'vadodara gujarat'],
+    location: {
+      name: 'Vadodara',
+      latitude: 22.3072,
+      longitude: 73.1812,
+      state: 'Gujarat',
+      country: 'India',
+      timezone: 'Asia/Kolkata'
+    }
+  },
+  {
+    aliases: ['jamnagar', 'jamnagar gujarat'],
+    location: {
+      name: 'Jamnagar',
+      latitude: 22.4707,
+      longitude: 70.0577,
+      state: 'Gujarat',
+      country: 'India',
+      timezone: 'Asia/Kolkata'
+    }
+  },
+  {
+    aliases: ['junagadh', 'junagadh gujarat'],
+    location: {
+      name: 'Junagadh',
+      latitude: 21.5222,
+      longitude: 70.4579,
+      state: 'Gujarat',
+      country: 'India',
+      timezone: 'Asia/Kolkata'
+    }
+  },
+  {
+    aliases: ['bhavnagar', 'bhavnagar gujarat'],
+    location: {
+      name: 'Bhavnagar',
+      latitude: 21.7645,
+      longitude: 72.1519,
+      state: 'Gujarat',
+      country: 'India',
+      timezone: 'Asia/Kolkata'
+    }
+  },
+  {
+    aliases: ['gandhinagar', 'gandhinagar gujarat'],
+    location: {
+      name: 'Gandhinagar',
+      latitude: 23.2156,
+      longitude: 72.6369,
+      state: 'Gujarat',
+      country: 'India',
+      timezone: 'Asia/Kolkata'
+    }
+  },
+  {
+    aliases: ['porbandar', 'porbandar gujarat'],
+    location: {
+      name: 'Porbandar',
+      latitude: 21.6417,
+      longitude: 69.6293,
+      state: 'Gujarat',
+      country: 'India',
+      timezone: 'Asia/Kolkata'
+    }
+  },
+  {
+    aliases: ['bhuj', 'bhuj gujarat'],
+    location: {
+      name: 'Bhuj',
+      latitude: 23.2420,
+      longitude: 69.6669,
+      state: 'Gujarat',
+      country: 'India',
+      timezone: 'Asia/Kolkata'
+    }
+  },
+  {
     aliases: ['dwarkadhish temple', 'dwarka temple', 'dwarka'],
     location: {
       name: 'Dwarkadhish Temple',
