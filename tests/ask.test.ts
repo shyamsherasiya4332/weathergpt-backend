@@ -180,6 +180,52 @@ describe('POST /api/ask - Natural Language Weather Queries', () => {
     expect(res.body.error.code).toBe('LOCATION_NOT_FOUND');
   });
 
+    const mockRajkotData = {
+      ...mockWeatherData,
+      location: {
+        name: 'Rajkot',
+        latitude: 22.3039,
+        longitude: 70.8022,
+        country: 'India',
+        state: 'Gujarat',
+        timezone: 'Asia/Kolkata'
+      }
+    };
+
+    it('Should correctly parse Gujarati/Hinglish query "Kale Rajkot Varsad Hase ke Nai" without ambiguity', async () => {
+      jest.spyOn(geocodingService, 'geocode').mockResolvedValueOnce({
+        success: true,
+        location: mockRajkotData.location,
+        isAmbiguous: false
+      });
+      jest.spyOn(openMeteoProvider, 'getWeatherData').mockResolvedValueOnce(mockRajkotData);
+
+      const res = await request(app)
+        .post('/api/ask')
+        .send({ question: 'Kale Rajkot Varsad Hase ke Nai' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.location.name).toMatch(/Rajkot/i);
+    });
+
+    it('Should correctly parse Gujarati/Hinglish query with "ma" post-position "Kale Rajkot Gujarat ma Varsad Hase ke Nai"', async () => {
+      jest.spyOn(geocodingService, 'geocode').mockResolvedValueOnce({
+        success: true,
+        location: mockRajkotData.location,
+        isAmbiguous: false
+      });
+      jest.spyOn(openMeteoProvider, 'getWeatherData').mockResolvedValueOnce(mockRajkotData);
+
+      const res = await request(app)
+        .post('/api/ask')
+        .send({ question: 'Kale Rajkot Gujarat ma Varsad Hase ke Nai' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.location.name).toMatch(/Rajkot/i);
+    });
+
   // Test 10: Explicit latitude/longitude request
   it('10. Should accept explicit latitude and longitude coordinates in request body', async () => {
     jest.spyOn(openMeteoProvider, 'getWeatherData').mockResolvedValueOnce(mockWeatherData);

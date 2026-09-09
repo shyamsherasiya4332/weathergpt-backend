@@ -62,13 +62,19 @@ export class OpenMeteoGeocodingProvider implements IGeocodingProvider {
         elevation: item.elevation
       }));
 
-      // Check if there are multiple top-level distinct country/state matches causing real ambiguity
+      // Prioritize Indian locations if searching from India / Indic queries
+      const indiaMatch = locations.find(
+        (l) => l.country?.toLowerCase() === 'india' || l.country?.toLowerCase() === 'in'
+      );
+      const selectedLocation = indiaMatch || locations[0];
+
+      // Mark ambiguous ONLY if no clear Indian match exists AND multiple distinct countries are found
       const distinctCountries = new Set(locations.map(l => `${l.name}, ${l.state || ''}, ${l.country || ''}`));
-      const isAmbiguous = distinctCountries.size > 1 && locations.length > 1;
+      const isAmbiguous = !indiaMatch && distinctCountries.size > 1 && locations.length > 1;
 
       const geocodeResult: GeocodingResult = {
         success: true,
-        location: locations[0],
+        location: selectedLocation,
         isAmbiguous,
         matches: locations
       };

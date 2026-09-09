@@ -108,25 +108,53 @@ export class LLMService {
 
     // Location extraction heuristic
     let locationName: string | undefined = undefined;
-    const reservedWords = ['today', 'tomorrow', 'tonight', 'morning', 'afternoon', 'evening', 'night', 'rain', 'weather', 'forecast', 'the', 'a', 'an'];
-    const inMatch = question.match(/(?:in|at|for|near|મા|માં|મેં)\s+([A-Za-z\u0A80-\u0AFF\u0900-\u097F\s]+)/i);
-    if (inMatch) {
-      const candidate = inMatch[1].trim();
-      if (!reservedWords.includes(candidate.toLowerCase())) {
-        locationName = candidate;
+
+    // 1. Direct city/landmark check
+    const knownCities = [
+      'Statue of Unity', 'Somnath Temple', 'Somnath', 'Gir National Park', 'Gir', 'Sabarmati Riverfront', 'Sabarmati',
+      'Rajkot Gujarat', 'Rajkot', 'Morbi Gujarat', 'Morbi', 'Ahmedabad', 'Surat', 'Vadodara', 'Mumbai', 'Delhi',
+      'Bangalore', 'Chennai', 'Kolkata', 'Jaipur', 'Pune', 'Hyderabad', 'Junagadh', 'Jamnagar', 'Bhavnagar', 'Anand', 'Nadiad', 'Bhuj', 'Kutch', 'Dwarka'
+    ];
+
+    for (const city of knownCities) {
+      if (qLower.includes(city.toLowerCase()) || question.includes(city)) {
+        locationName = city;
+        break;
       }
     }
-    
+
     if (!locationName) {
-      // Direct city check
-      const knownCities = ['Morbi', 'Rajkot', 'Ahmedabad', 'Surat', 'Vadodara', 'Mumbai', 'Delhi', 'Bangalore', 'London', 'New York'];
-      for (const city of knownCities) {
-        if (qLower.includes(city.toLowerCase())) {
-          locationName = city;
-          break;
+      // 2. Check Gujarati / Hinglish post-position e.g. "Rajkot Gujarat ma", "Morbi ma"
+      const postMatch = question.match(/([A-Za-z\u0A80-\u0AFF\u0900-\u097F\s]{2,30})\s+(?:ma|માં|મા|me|mein)\b/i);
+      if (postMatch) {
+        let candidate = postMatch[1].trim();
+        candidate = candidate.replace(/^(?:kale|aaje|today|tomorrow|kal|shyam|sanje|savare|morning|evening|night)\s+/i, '').trim();
+        if (candidate) {
+          locationName = candidate;
         }
       }
-      if (question.includes('મોરબી')) locationName = 'Morbi';
+    }
+
+    if (!locationName) {
+      // 3. English preposition e.g. "in Rajkot", "at Statue of Unity"
+      const inMatch = question.match(/(?:in|at|for|near)\s+([A-Za-z\u0A80-\u0AFF\u0900-\u097F\s]{2,30})/i);
+      if (inMatch) {
+        let candidate = inMatch[1].trim();
+        candidate = candidate.split(/\s+(?:today|tomorrow|tonight|rain|varsad|hase|padse|ke|nai|hoga|kya)\b/i)[0].trim();
+        if (candidate) {
+          locationName = candidate;
+        }
+      }
+    }
+
+    // Sanitize candidate location name: remove trailing stop-words
+    if (locationName) {
+      locationName = locationName
+        .replace(/\b(?:varsad|rain|weather|forecast|hoga|hogi|padse|hase|ke|nai|kya|aaje|kale|today|tomorrow|shyam|sanje|savare|temp|taapman)\b/gi, '')
+        .trim();
+      if (locationName.length === 0) {
+        locationName = undefined;
+      }
     }
 
     return {
