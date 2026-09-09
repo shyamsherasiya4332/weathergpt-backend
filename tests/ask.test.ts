@@ -243,6 +243,23 @@ describe('POST /api/ask - Natural Language Weather Queries', () => {
       expect(res.body.answer).toMatch(/પરમદિવસે|પરમ દિવસનું/);
     });
 
+    it('Should correctly handle Garmi (heat/temperature) query "MORBI MA KALE GARMI KEVI HASE?"', async () => {
+      jest.spyOn(geocodingService, 'geocode').mockResolvedValueOnce({
+        success: true,
+        location: mockLocation,
+        isAmbiguous: false
+      });
+      jest.spyOn(openMeteoProvider, 'getWeatherData').mockResolvedValueOnce(mockWeatherData);
+
+      const res = await request(app)
+        .post('/api/ask')
+        .send({ question: 'MORBI MA KALE GARMI KEVI HASE?' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.answer).toMatch(/ગરમી|તાપમાન/);
+    });
+
   // Test 10: Explicit latitude/longitude request
   it('10. Should accept explicit latitude and longitude coordinates in request body', async () => {
     jest.spyOn(openMeteoProvider, 'getWeatherData').mockResolvedValueOnce(mockWeatherData);

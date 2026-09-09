@@ -347,12 +347,12 @@ Extract JSON:
     const qLower = question.toLowerCase();
 
     let intent: ParsedNLU['intent'] = 'general_forecast';
-    if (/rain|varsad|बारिश|મழை|મજ્હા|મળ|પાણી|વરસાદ|chances of rain|umbrella/i.test(question)) {
+    if (/garmi|ગરમી|ગરીમી|bafaro|બફારો|thandi|ઠંડી|તાપમાન|तापमान|गर्मी|ठंड|temp|temperature|heat|hot|cold|warm|degree|ડિગ્રી/i.test(question)) {
+      intent = 'temperature';
+    } else if (/rain|varsad|बारिश|મழை|મજ્હા|મળ|પાણી|વરસાદ|chances of rain|umbrella/i.test(question)) {
       intent = 'rain_forecast';
     } else if (/right now|currently|current|હાલ|અત્યારે|अभी/i.test(question)) {
       intent = 'current_weather';
-    } else if (/temp|temperature|તાપમાન|तापमान/i.test(question)) {
-      intent = 'temperature';
     }
 
     let targetDate: ParsedNLU['targetDate'] = 'today';
@@ -385,7 +385,7 @@ Extract JSON:
 
     const isGujaratiQuery =
       /[\u0A80-\u0AFF]/.test(question) ||
-      /\b(?:kale|aaje|varsad|padse|hase|nai|ke|sanje|savare|bapore|ma|mein)\b/i.test(question);
+      /\b(?:kale|aaje|varsad|padse|hase|nai|ke|sanje|savare|bapore|ma|mein|garmi|thandi)\b/i.test(question);
     const language = isGujaratiQuery ? 'gu' : (/[a-zA-Z]/.test(question) ? 'en' : 'hi');
 
     let locationName: string | undefined = undefined;
@@ -407,7 +407,7 @@ Extract JSON:
       const postMatch = question.match(/([A-Za-z\u0A80-\u0AFF\u0900-\u097F\s]{2,30})\s+(?:ma|માં|મા|me|mein)\b/i);
       if (postMatch) {
         let candidate = postMatch[1].trim();
-        candidate = candidate.replace(/^(?:kale|aaje|today|tomorrow|kal|shyam|sanje|savare|morning|evening|night)\s+/i, '').trim();
+        candidate = candidate.replace(/^(?:kale|aaje|today|tomorrow|kal|shyam|sanje|savare|morning|evening|night|garmi|thandi)\s+/i, '').trim();
         if (candidate) {
           locationName = candidate;
         }
@@ -418,7 +418,7 @@ Extract JSON:
       const inMatch = question.match(/(?:in|at|for|near)\s+([A-Za-z\u0A80-\u0AFF\u0900-\u097F\s]{2,30})/i);
       if (inMatch) {
         let candidate = inMatch[1].trim();
-        candidate = candidate.split(/\s+(?:today|tomorrow|tonight|rain|varsad|hase|padse|ke|nai|hoga|kya)\b/i)[0].trim();
+        candidate = candidate.split(/\s+(?:today|tomorrow|tonight|rain|varsad|hase|padse|ke|nai|hoga|kya|garmi|thandi)\b/i)[0].trim();
         if (candidate) {
           locationName = candidate;
         }
@@ -428,7 +428,7 @@ Extract JSON:
     if (locationName) {
       locationName = locationName
         .replace(/\b(?:gujarat|maharashtra|rajasthan|punjab|haryana|delhi|karnataka|kerala|tamilnadu|india|bharat)\b/gi, '')
-        .replace(/\b(?:varsad|rain|weather|forecast|hoga|hogi|padse|hase|ke|nai|kya|aaje|kale|today|tomorrow|shyam|sanje|savare|temp|taapman)\b/gi, '')
+        .replace(/\b(?:varsad|rain|weather|forecast|hoga|hogi|padse|hase|ke|nai|kya|aaje|kale|today|tomorrow|shyam|sanje|savare|temp|taapman|garmi|thandi|bafaro)\b/gi, '')
         .trim();
       if (locationName.length === 0) {
         locationName = undefined;
@@ -460,6 +460,7 @@ Extract JSON:
     const userPromptPayload = `
 User Question: "${question}"
 Detected Language: ${nlu.language}
+User Intent Focus: ${nlu.intent} (${nlu.intent === 'temperature' ? 'User explicitly asks about GARMI / HEAT / TEMPERATURE. Answer MUST immediately focus on heat, temperature range, and heat comfort!' : nlu.intent === 'rain_forecast' ? 'User explicitly asks about RAIN.' : 'General Weather'})
 Location: ${weatherData.location.name}, ${weatherData.location.state || ''} ${weatherData.location.country || ''}
 Local Timezone: ${tz}
 Current Local Date & Time: ${localNow}
@@ -481,7 +482,7 @@ Precipitation / Rain Forecast Analysis for target window (${targetDateStr}):
 - Peak Time Window: ${rainAnalysis.peakRainTimeWindow || 'N/A'}
 
 Synthesize a clear, concise, accurate answer answering the user's exact question in ${nlu.language}.
-If the user explicitly asks for MORNING, AFTERNOON, EVENING, or NIGHT, give specific metrics for that exact time window.
+If the user asks about GARMI / HEAT, address heat and temperature levels FIRST before rain details.
 Follow all rules of WeatherGPT system prompt.
 `;
 
@@ -513,7 +514,7 @@ Follow all rules of WeatherGPT system prompt.
     const isGujarati =
       nlu.language === 'gu' ||
       /[\u0A80-\u0AFF]/.test(question) ||
-      /\b(?:kale|aaje|varsad|padse|hase|nai|ke|sanje|savare|bapore|ma|mein)\b/i.test(question);
+      /\b(?:kale|aaje|varsad|padse|hase|nai|ke|sanje|savare|bapore|ma|mein|garmi|thandi)\b/i.test(question);
     const isHindi = !isGujarati && (nlu.language === 'hi' || nlu.language === 'hinglish');
 
     const stats = getTimeRangeStats(weatherData, targetDateStr, nlu.timeRange, nlu.specificTimeRange);
@@ -523,40 +524,57 @@ Follow all rules of WeatherGPT system prompt.
     const rainProb = stats.maxRainProb;
     const rainAmount = stats.totalRainMm;
     const windSpeed = stats.avgWind;
+    const isGarmiQuery = nlu.intent === 'temperature' || /garmi|ગરમી|ગરીમી|bafaro|તાપમાન|temp|heat|hot/i.test(question);
 
     if (isGujarati) {
       const gujCond = translateConditionToGujarati(stats.condition);
 
       let summaryHeading = '';
       let rainText = '';
-      if (rainProb >= 60) {
+
+      if (isGarmiQuery) {
+        let garmiLevel = '';
+        if (maxTemp >= 38) {
+          garmiLevel = `ભારે ગરમી અને બફારો અનુભવાશે (તાપમાન ${maxTemp}°C સુધી પહોંચી શકે છે)`;
+        } else if (maxTemp >= 32) {
+          garmiLevel = `મધ્યમ ગરમી રહેશે (તાપમાન ${minTemp}°C થી ${maxTemp}°C ની વચ્ચે રહેશે)`;
+        } else if (maxTemp < 25) {
+          garmiLevel = `ગરમીનું પ્રમાણ ઓછું અને વાતાવરણ ગુલગુલાબી/ઠંડું રહેશે (તાપમાન ${minTemp}°C થી ${maxTemp}°C)`;
+        } else {
+          garmiLevel = `ગરમીનું પ્રમાણ સામાન્ય અને અનુકૂળ રહેશે (તાપમાન ${minTemp}°C થી ${maxTemp}°C)`;
+        }
+        summaryHeading = `${loc} માં ${stats.timePeriodGu} ${garmiLevel}.`;
+      } else if (rainProb >= 60) {
         summaryHeading = `હા, ${loc} માં ${stats.timePeriodGu} વરસાદી માહોલ રહેશે અને હળવાથી મધ્યમ વરસાદ (${rainProb}% સંભાવના, ~${rainAmount} mm) પડવાની શક્યતા છે.`;
-        rainText = `હળવાથી મધ્યમ વરસાદ (${rainProb}% સંભાવના, ~${rainAmount} mm)`;
       } else if (rainProb >= 30) {
         summaryHeading = `હા, ${loc} માં ${stats.timePeriodGu} વાદળછાયું વાતાવરણ રહેશે અને હળવા ઝાપટાં (${rainProb}% સંભાવના) પડી શકે છે.`;
+      } else {
+        summaryHeading = `${loc} માં ${stats.timePeriodGu} વાતાવરણ મુખ્યત્વે સાફ અને અનુકૂળ રહેશે. વરસાદની શક્યતા નહિવત (${rainProb}%) છે.`;
+      }
+
+      if (rainProb >= 60) {
+        rainText = `હળવાથી મધ્યમ વરસાદ (${rainProb}% સંભાવના, ~${rainAmount} mm)`;
+      } else if (rainProb >= 30) {
         rainText = `હળવા ઝાપટાં શક્ય (${rainProb}% સંભાવના)`;
       } else {
-        summaryHeading = `${loc} માં ${stats.timePeriodGu} વાતાવરણ મુખ્યત્વે ખુલ્લું અને અનુકૂળ રહેશે. વરસાદની શક્યતા નહિવત (${rainProb}%) છે.`;
         rainText = `નહિવત / વરસાદની ઓછી શક્યતા (${rainProb}%)`;
       }
 
       let tipText = '';
-      if (rainProb >= 50) {
+      if (isGarmiQuery && maxTemp >= 34) {
+        tipText = '\n\n💡 *સલાહ: બપોરના સમયે તડકામાં બહાર નીકળતી વખતે પુષ્કળ પાણી પીવું અને સુતરાઉ કપડાં પહેરવા.*';
+      } else if (rainProb >= 50) {
         tipText = '\n\n💡 *સલાહ: બહાર નીકળતી વખતે છત્રી અથવા રેઈનકોટ સાથે રાખવો હિતાવહ છે.*';
-      } else if (maxTemp >= 38) {
-        tipText = '\n\n💡 *સલાહ: તાપમાન વધુ હોવાથી બપોરના સમયે તડકાથી બચવું અને પુષ્કળ પાણી પીવું.*';
-      } else if (windSpeed >= 25) {
-        tipText = `\n\n💡 *સલાહ: પવનની ઝડપ ${windSpeed} km/h સુધી હોવાથી વાહન ચલાવતી વખતે સાવચેતી રાખવી.*`;
       } else if (!stats.isSpecificRange) {
-        tipText = '\n\n💡 *જો તમારે સવારે, બપોરે કે સાંજે કયા સમયે વાતાવરણ કેવું રહેશે તેની કલાકવાર (hourly) વિગત જોઈએ, તો જણાવો.*';
+        tipText = '\n\n💡 *જો તમારે બપોરે કે સાંજે ગરમી અને પવનનું પ્રમાણ કેવું રહેશે તેની કલાકવાર (hourly) વિગત જોઈએ, તો જણાવો.*';
       }
 
       return `${summaryHeading}
 
 **${loc} – ${stats.labelGu}**
-🌧️ **વરસાદ**: ${rainText}
-🌤️ **આકાશ**: ${gujCond}
 🌡️ **તાપમાન**: ${minTemp}°C થી ${maxTemp}°C
+🌤️ **આકાશ**: ${gujCond}
+🌧️ **વરસાદ**: ${rainText}
 💨 **પવન**: આશરે ${windSpeed} km/h (ભેજ: ${weatherData.current.humidity}%)
 
 — *India Meteorological Department (IMD) / MoES Data*${tipText}`;
@@ -567,24 +585,40 @@ Follow all rules of WeatherGPT system prompt.
 
       let summaryHeading = '';
       let rainText = '';
-      if (rainProb >= 60) {
+
+      if (isGarmiQuery) {
+        let garmiLevel = '';
+        if (maxTemp >= 38) {
+          garmiLevel = `भीषण गर्मी और उमस रहेगी (तापमान ${maxTemp}°C तक पहुंच सकता है)`;
+        } else if (maxTemp >= 32) {
+          garmiLevel = `मध्यम गर्मी रहेगी (तापमान ${minTemp}°C से ${maxTemp}°C के बीच रहेगा)`;
+        } else if (maxTemp < 25) {
+          garmiLevel = `गर्मी कम और मौसम सुहावना रहेगा (तापमान ${minTemp}°C से ${maxTemp}°C)`;
+        } else {
+          garmiLevel = `गर्मी का स्तर सामान्य और अनुकूल रहेगा (तापमान ${minTemp}°C से ${maxTemp}°C)`;
+        }
+        summaryHeading = `${loc} में ${stats.timePeriodHi} ${garmiLevel}।`;
+      } else if (rainProb >= 60) {
         summaryHeading = `हां, ${loc} में ${stats.timePeriodHi} हल्की से मध्यम बारिश (${rainProb}% संभावना, ~${rainAmount} mm) होने की संभावना है।`;
-        rainText = `मध्यम बारिश (${rainProb}% संभावना, ~${rainAmount} mm)`;
       } else if (rainProb >= 30) {
         summaryHeading = `हां, ${loc} में ${stats.timePeriodHi} बादल छाए रहेंगे और हल्की बूंदाबांदी (${rainProb}%) संभव है।`;
-        rainText = `हल्की बूंदाबांदी संभव (${rainProb}% संभावना)`;
       } else {
         summaryHeading = `${loc} में ${stats.timePeriodHi} मौसम मुख्यतः साफ और सुहावना रहेगा। बारिश की संभावना कम (${rainProb}%) है।`;
+      }
+
+      if (rainProb >= 60) {
+        rainText = `मध्यम बारिश (${rainProb}% संभावना, ~${rainAmount} mm)`;
+      } else if (rainProb >= 30) {
+        rainText = `हल्की बूंदाबांदी संभव (${rainProb}% संभावना)`;
+      } else {
         rainText = `कम संभावना (${rainProb}%)`;
       }
 
       let tipText = '';
-      if (rainProb >= 50) {
+      if (isGarmiQuery && maxTemp >= 34) {
+        tipText = '\n\n💡 *सलाह: धूप में पर्याप्त पानी पीते रहें और सूती कपड़े पहनें।*';
+      } else if (rainProb >= 50) {
         tipText = '\n\n💡 *सलाह: बाहर निकलते समय छाता या रेनकोट साथ रखना बेहतर रहेगा।*';
-      } else if (maxTemp >= 38) {
-        tipText = '\n\n💡 *सलाह: तापमान अधिक रहने के कारण दोपहर में पर्याप्त पानी पीते रहें।*';
-      } else if (windSpeed >= 25) {
-        tipText = `\n\n💡 *सलाह: तेज हवाएं (~${windSpeed} km/h) चलने के कारण सावधानी बरतें।*`;
       } else if (!stats.isSpecificRange) {
         tipText = '\n\n💡 *यदि आप सुबह, दोपहर या शाम के समय का विस्तृत पूर्वानुमान जानना चाहते हैं, तो पूछ सकते हैं!*';
       }
@@ -592,9 +626,9 @@ Follow all rules of WeatherGPT system prompt.
       return `${summaryHeading}
 
 **${loc} – ${stats.labelHi}**
-🌧️ **बारिश**: ${rainText}
-🌤️ **आकाश**: ${hiCond}
 🌡️ **तापमान**: ${minTemp}°C से ${maxTemp}°C
+🌤️ **आकाश**: ${hiCond}
+🌧️ **बारिश**: ${rainText}
 💨 **हवा**: लगभग ${windSpeed} km/h (आर्द्रता: ${weatherData.current.humidity}%)
 
 — *India Meteorological Department (IMD) / MoES Data*${tipText}`;
@@ -602,24 +636,30 @@ Follow all rules of WeatherGPT system prompt.
 
     let summaryHeading = '';
     let rainText = '';
-    if (rainProb >= 60) {
+
+    if (isGarmiQuery) {
+      summaryHeading = `In ${loc}, ${stats.timePeriodEn} temperatures will reach between ${minTemp}°C and ${maxTemp}°C with comfortable heat levels.`;
+    } else if (rainProb >= 60) {
       summaryHeading = `Yes, there is a high likelihood of light to moderate rain in ${loc} ${stats.timePeriodEn} (${rainProb}% chance, ~${rainAmount} mm).`;
-      rainText = `Light to Moderate Rain (${rainProb}% chance, ~${rainAmount} mm)`;
     } else if (rainProb >= 30) {
       summaryHeading = `Yes, there is a moderate chance of light rain/showers in ${loc} ${stats.timePeriodEn} (${rainProb}% chance).`;
-      rainText = `Light Rain / Showers possible (${rainProb}% chance)`;
     } else {
       summaryHeading = `Rain is unlikely in ${loc} ${stats.timePeriodEn} (only ${rainProb}% probability). Weather will be clear and pleasant.`;
+    }
+
+    if (rainProb >= 60) {
+      rainText = `Light to Moderate Rain (${rainProb}% chance, ~${rainAmount} mm)`;
+    } else if (rainProb >= 30) {
+      rainText = `Light Rain / Showers possible (${rainProb}% chance)`;
+    } else {
       rainText = `Unlikely (${rainProb}% chance)`;
     }
 
     let tipText = '';
-    if (rainProb >= 50) {
+    if (isGarmiQuery && maxTemp >= 34) {
+      tipText = '\n\n💡 *Tip: High afternoon temperature expected. Stay hydrated when outdoors.*';
+    } else if (rainProb >= 50) {
       tipText = '\n\n💡 *Tip: Carrying an umbrella or raincoat is recommended.*';
-    } else if (maxTemp >= 38) {
-      tipText = '\n\n💡 *Tip: High temperatures expected. Stay hydrated throughout the day.*';
-    } else if (windSpeed >= 25) {
-      tipText = `\n\n💡 *Tip: Strong winds (~${windSpeed} km/h) expected, drive carefully.*`;
     } else if (!stats.isSpecificRange) {
       tipText = '\n\n💡 *Would you like an hourly breakdown for morning, afternoon, or evening? Just ask!*';
     }
@@ -627,9 +667,9 @@ Follow all rules of WeatherGPT system prompt.
     return `${summaryHeading}
 
 **${loc} – ${stats.labelEn}**
-🌧️ **Rain**: ${rainText}
-🌤️ **Sky**: ${stats.condition}
 🌡️ **Temperature**: ${minTemp}°C to ${maxTemp}°C
+🌤️ **Sky**: ${stats.condition}
+🌧️ **Rain**: ${rainText}
 💨 **Wind**: ~${windSpeed} km/h (Humidity: ${weatherData.current.humidity}%)
 
 — *India Meteorological Department (IMD) / MoES Data*${tipText}`;
