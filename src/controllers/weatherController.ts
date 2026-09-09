@@ -4,7 +4,7 @@ import { matchFestival } from '../config/festivals.js';
 import { advisoryService } from '../services/advisory/advisoryService.js';
 import { conversationService } from '../services/conversation/conversationService.js';
 import { languageService } from '../services/language/languageService.js';
-import { llmService } from '../services/llm/llmService.js';
+import { llmService, getTimeRangeStats, translateConditionToGujarati, translateConditionToHindi } from '../services/llm/llmService.js';
 import { makeService } from '../services/make/makeService.js';
 import { riskService } from '../services/risk/riskService.js';
 import { timelineService } from '../services/timeline/timelineService.js';
@@ -60,6 +60,130 @@ export class WeatherController {
       const nlu = await llmService.parseNLU(question);
       if (effectiveLanguage) {
         nlu.language = effectiveLanguage;
+      }
+
+      // Check Affirmative Follow-up (e.g. "yes", "ha", "haan", "હા", "हाँ", "ok", "sure", "bato")
+      const isAffirmative = /^(?:yes|ha|haan|haa|haanji|હા|हाँ|ok|okay|sure|yeah|yep|yup|hange|true|bato|kaho|aapo|ha\s+bato|ha\s+aapo|baporo|sanj)$/i.test(question.trim());
+      if ((nlu.intent === 'follow_up_time_breakdown' || isAffirmative) && convContext?.lastWeatherData) {
+        logger.info(`Handling affirmative follow-up query for location '${convContext.locationName}'`);
+        const weatherData = convContext.lastWeatherData;
+        const targetDateStr = weatherData.daily[0]?.date || new Date().toISOString().split('T')[0];
+        const locName = weatherData.location.name;
+        const isGu = nlu.language === 'gu' || convContext.language === 'gu';
+        const isHi = !isGu && (nlu.language === 'hi' || convContext.language === 'hi');
+
+        const morningStats = getTimeRangeStats(weatherData, targetDateStr, 'morning', { startHour: 6, endHour: 12 });
+        const afternoonStats = getTimeRangeStats(weatherData, targetDateStr, 'afternoon', { startHour: 12, endHour: 17 });
+        const eveningStats = getTimeRangeStats(weatherData, targetDateStr, 'evening', { startHour: 17, endHour: 21 });
+        const nightStats = getTimeRangeStats(weatherData, targetDateStr, 'night', { startHour: 21, endHour: 23 });
+
+        let breakdownAnswer = '';
+        if (isGu) {
+          breakdownAnswer = `ચોક્કસ! અહીં **${locName}** માટે સમયગાળા મુજબ (સવાર, બપોર, સાંજ, રાત) કલાકવાર હવામાનની સંપૂર્ણ વિગત છે:
+
+🌅 **સવાર (06:00 થી 12:00)**:
+• વાતાવરણ: ${translateConditionToGujarati(morningStats.condition)}
+• તાપમાન: ${morningStats.minTemp}°C થી ${morningStats.maxTemp}°C
+• વરસાદની શક્યતા: ${morningStats.maxRainProb}% (${morningStats.totalRainMm > 0 ? `${morningStats.totalRainMm} mm` : 'નહિવત'})
+
+☀️ **બપોર (12:00 થી 17:00)**:
+• વાતાવરણ: ${translateConditionToGujarati(afternoonStats.condition)}
+• તાપમાન: ${afternoonStats.minTemp}°C થી ${afternoonStats.maxTemp}°C
+• વરસાદની શક્યતા: ${afternoonStats.maxRainProb}% (${afternoonStats.totalRainMm > 0 ? `${afternoonStats.totalRainMm} mm` : 'નહિવત'})
+
+🌆 **સાંજ (17:00 થી 21:00)**:
+• વાતાવરણ: ${translateConditionToGujarati(eveningStats.condition)}
+• તાપમાન: ${eveningStats.minTemp}°C થી ${eveningStats.maxTemp}°C
+• વરસાદની શક્યતા: ${eveningStats.maxRainProb}% (${eveningStats.totalRainMm > 0 ? `${eveningStats.totalRainMm} mm` : 'નહિવત'})
+
+🌙 **રાત (21:00 થી 06:00)**:
+• વાતાવરણ: ${translateConditionToGujarati(nightStats.condition)}
+• તાપમાન: ${nightStats.minTemp}°C થી ${nightStats.maxTemp}°C
+• વરસાદની શક્યતા: ${nightStats.maxRainProb}% (${nightStats.totalRainMm > 0 ? `${nightStats.totalRainMm} mm` : 'નહિવત'})
+
+— *India Meteorological Department (IMD) / MoES Data*`;
+        } else if (isHi) {
+          breakdownAnswer = `बिल्कुल! यहाँ **${locName}** के लिए समयानुसार (सुबह, दोपहर, शाम, रात) मौसम का पूरा विवरण है:
+
+🌅 **सुबह (06:00 से 12:00)**:
+• मौसम: ${translateConditionToHindi(morningStats.condition)}
+• तापमान: ${morningStats.minTemp}°C से ${morningStats.maxTemp}°C
+• बारिश की संभावना: ${morningStats.maxRainProb}% (${morningStats.totalRainMm > 0 ? `${morningStats.totalRainMm} mm` : 'नगण्य'})
+
+☀️ **दोपहर (12:00 से 17:00)**:
+• मौसम: ${translateConditionToHindi(afternoonStats.condition)}
+• तापमान: ${afternoonStats.minTemp}°C से ${afternoonStats.maxTemp}°C
+• बारिश की संभावना: ${afternoonStats.maxRainProb}% (${afternoonStats.totalRainMm > 0 ? `${afternoonStats.totalRainMm} mm` : 'नगण्य'})
+
+🌆 **शाम (17:00 से 21:00)**:
+• मौसम: ${translateConditionToHindi(eveningStats.condition)}
+• तापमान: ${eveningStats.minTemp}°C से ${eveningStats.maxTemp}°C
+• बारिश की संभावना: ${eveningStats.maxRainProb}% (${eveningStats.totalRainMm > 0 ? `${eveningStats.totalRainMm} mm` : 'नगण्य'})
+
+🌙 **रात (21:00 से 06:00)**:
+• मौसम: ${translateConditionToHindi(nightStats.condition)}
+• तापमान: ${nightStats.minTemp}°C से ${nightStats.maxTemp}°C
+• बारिश की संभावना: ${nightStats.maxRainProb}% (${nightStats.totalRainMm > 0 ? `${nightStats.totalRainMm} mm` : 'नगण्य'})
+
+— *India Meteorological Department (IMD) / MoES Data*`;
+        } else {
+          breakdownAnswer = `Sure! Here is the time-of-day weather breakdown (morning, afternoon, evening, night) for **${locName}**:
+
+🌅 **Morning (6:00 AM - 12:00 PM)**:
+• Condition: ${morningStats.condition}
+• Temperature: ${morningStats.minTemp}°C to ${morningStats.maxTemp}°C
+• Rain Probability: ${morningStats.maxRainProb}% (${morningStats.totalRainMm > 0 ? `${morningStats.totalRainMm} mm` : 'negligible'})
+
+☀️ **Afternoon (12:00 PM - 5:00 PM)**:
+• Condition: ${afternoonStats.condition}
+• Temperature: ${afternoonStats.minTemp}°C to ${afternoonStats.maxTemp}°C
+• Rain Probability: ${afternoonStats.maxRainProb}% (${afternoonStats.totalRainMm > 0 ? `${afternoonStats.totalRainMm} mm` : 'negligible'})
+
+🌆 **Evening (5:00 PM - 9:00 PM)**:
+• Condition: ${eveningStats.condition}
+• Temperature: ${eveningStats.minTemp}°C to ${eveningStats.maxTemp}°C
+• Rain Probability: ${eveningStats.maxRainProb}% (${eveningStats.totalRainMm > 0 ? `${eveningStats.totalRainMm} mm` : 'negligible'})
+
+🌙 **Night (9:00 PM - 6:00 AM)**:
+• Condition: ${nightStats.condition}
+• Temperature: ${nightStats.minTemp}°C to ${nightStats.maxTemp}°C
+• Rain Probability: ${nightStats.maxRainProb}% (${nightStats.totalRainMm > 0 ? `${nightStats.totalRainMm} mm` : 'negligible'})
+
+— *India Meteorological Department (IMD) / MoES Data*`;
+        }
+
+        const rainAnalysis = weatherService.analyzeRainForecast(weatherData, nlu);
+        const riskScores = riskService.calculateRiskScores(weatherData, rainAnalysis);
+        const timelineData = timelineService.generateTimeline(weatherData, targetDateStr);
+
+        res.json({
+          success: true,
+          answer: breakdownAnswer,
+          language: nlu.language,
+          conversationId: convContext.id,
+          location: {
+            name: weatherData.location.name,
+            latitude: weatherData.location.latitude,
+            longitude: weatherData.location.longitude,
+            country: weatherData.location.country,
+            state: weatherData.location.state,
+            timezone: weatherData.location.timezone
+          },
+          weather: {
+            temperature: Math.round(weatherData.current.temperature),
+            apparentTemperature: Math.round(weatherData.current.apparentTemperature),
+            condition: weatherData.current.condition,
+            rain_probability: rainAnalysis.maxRainProbability,
+            rain_amount_mm: rainAnalysis.totalRainAmountMm,
+            humidity: weatherData.current.humidity,
+            windSpeed: weatherData.current.windSpeed,
+            uvIndex: weatherData.current.uvIndex
+          },
+          timeline: timelineData,
+          riskScores,
+          generated_at: new Date().toISOString()
+        });
+        return;
       }
 
       // Check Festival / Event mode

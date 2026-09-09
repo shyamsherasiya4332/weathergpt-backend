@@ -57,7 +57,7 @@ function formatGujaratiTimeWindow(timeWindow: string | undefined): string {
   return timeWindow;
 }
 
-function translateConditionToGujarati(condition: string): string {
+export function translateConditionToGujarati(condition: string): string {
   const c = condition.toLowerCase();
   if (c.includes('clear')) return 'ચોખ્ખું આકાશ';
   if (c.includes('partly cloudy')) return 'અંશતઃ વાદળછાયું';
@@ -70,7 +70,7 @@ function translateConditionToGujarati(condition: string): string {
   return condition;
 }
 
-function translateConditionToHindi(condition: string): string {
+export function translateConditionToHindi(condition: string): string {
   const c = condition.toLowerCase();
   if (c.includes('clear')) return 'साफ आसमान';
   if (c.includes('partly cloudy')) return 'आंशिक रूप से बादल';
@@ -83,7 +83,7 @@ function translateConditionToHindi(condition: string): string {
   return condition;
 }
 
-interface TimeRangeStats {
+export interface TimeRangeStats {
   labelGu: string;
   labelHi: string;
   labelEn: string;
@@ -99,7 +99,7 @@ interface TimeRangeStats {
   timePeriodEn: string;
 }
 
-function getTimeRangeStats(
+export function getTimeRangeStats(
   weatherData: WeatherData,
   targetDateStr: string,
   timeRange?: string,

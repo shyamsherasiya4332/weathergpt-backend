@@ -5,6 +5,7 @@ export type WeatherIntent =
   | 'general_forecast'
   | 'advisory'
   | 'hourly_forecast'
+  | 'follow_up_time_breakdown'
   | 'unknown';
 
 export interface LocationEntity {
