@@ -1,115 +1,162 @@
-import { NLU_SYSTEM_PROMPT } from '../../prompts/nluPrompt.js';
 import { WEATHER_GPT_SYSTEM_PROMPT } from '../../prompts/weatherPrompt.js';
+import { LocationInput } from '../../types/api.js';
 import { ParsedNLU } from '../../types/nlu.js';
 import { RainAnalysisResult, WeatherData } from '../../types/weather.js';
 import { getCurrentTimeInTimezone, getRelativeDateString } from '../../utils/dateUtils.js';
 import { logger } from '../../utils/logger.js';
 import { openAIClient } from './openaiClient.js';
 
+function formatGujaratiDate(isoDateStr: string): string {
+  const parts = isoDateStr.split('-');
+  if (parts.length !== 3) return isoDateStr;
+  const formattedDdMmYyyy = `${parts[2]}-${parts[1]}-${parts[0]}`;
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowStr = tomorrow.toISOString().split('T')[0];
+
+  if (isoDateStr === todayStr) {
+    return `આજે (${formattedDdMmYyyy})`;
+  } else if (isoDateStr === tomorrowStr) {
+    return `કાલે (${formattedDdMmYyyy})`;
+  } else {
+    return `તારીખ ${formattedDdMmYyyy}`;
+  }
+}
+
+function formatGujaratiTimeWindow(timeWindow: string | undefined): string {
+  if (!timeWindow) return 'સાંજે';
+
+  const match = timeWindow.match(/(\d{1,2}):(\d{2})/);
+  if (match) {
+    const hour = parseInt(match[1], 10);
+    let timeOfDay = 'સાંજે';
+    let displayHour = hour;
+
+    if (hour >= 0 && hour < 6) {
+      timeOfDay = 'રાત્રે';
+      displayHour = hour === 0 ? 12 : hour;
+    } else if (hour >= 6 && hour < 12) {
+      timeOfDay = 'સવારે';
+      displayHour = hour;
+    } else if (hour >= 12 && hour < 17) {
+      timeOfDay = 'બપોરે';
+      displayHour = hour === 12 ? 12 : hour - 12;
+    } else if (hour >= 17 && hour < 21) {
+      timeOfDay = 'સાંજે';
+      displayHour = hour - 12;
+    } else {
+      timeOfDay = 'રાત્રે';
+      displayHour = hour - 12;
+    }
+
+    return `${timeOfDay} ${displayHour} વાગ્યે`;
+  }
+
+  return timeWindow;
+}
+
 export class LLMService {
-  async parseNLU(question: string): Promise<ParsedNLU> {
+  async parseNLU(question: string, locationContext?: LocationInput): Promise<ParsedNLU> {
     const qLower = question.toLowerCase();
 
-    // Determine language heuristic
-    let language: 'en' | 'gu' | 'hi' | 'hinglish' = 'en';
-    const gujChars = /[\u0A80-\u0AFF]/;
-    const devanagariChars = /[\u0900-\u097F]/;
+    // Check if query is in Gujarati / Hinglish Gujarati
+    const isGujaratiQuery =
+      /[\u0A80-\u0AFF]/.test(question) ||
+      /\b(?:kale|aaje|varsad|padse|hase|nai|ke|sanje|savare|bapore|ma|mein)\b/i.test(question);
 
-    if (gujChars.test(question)) {
-      language = 'gu';
-    } else if (devanagariChars.test(question)) {
-      language = 'hi';
-    } else if (qLower.includes('varsad') || qLower.includes('aaje') || qLower.includes('kale') || qLower.includes('hoga') || qLower.includes('padse')) {
-      language = 'hinglish';
-    }
+    const prompt = `
+User Query: "${question}"
+Location Context: ${locationContext ? JSON.stringify(locationContext) : 'None'}
+
+Extract JSON:
+{
+  "intent": "rain_forecast" | "current_weather" | "general_forecast" | "temperature" | "clothing" | "advisory" | "unknown",
+  "locationName": string | null,
+  "isLocationNeeded": boolean,
+  "targetDate": "today" | "tomorrow" | "specific_date" | null,
+  "specificDateStr": "YYYY-MM-DD" | null,
+  "timeRange": "full_day" | "morning" | "afternoon" | "evening" | "night" | "specific_hours" | null,
+  "specificTimeRange": { "startHour": number, "endHour": number } | null,
+  "language": "${isGujaratiQuery ? 'gu' : 'auto'}"
+}
+`;
 
     if (openAIClient.isConfigured()) {
       try {
-        const rawJson = await openAIClient.generateChatCompletion(
-          NLU_SYSTEM_PROMPT,
-          `Question: "${question}"`,
-          true
+        const responseText = await openAIClient.generateChatCompletion(
+          'You are a precise weather intent parser. Output raw JSON only.',
+          prompt
         );
-        const parsed = JSON.parse(rawJson) as ParsedNLU;
-        if (parsed.intent) {
-          return { ...parsed, language: parsed.language || language };
-        }
-      } catch (err) {
-        logger.warn('NLU parsing via LLM failed, using heuristic parser:', err);
+        const parsed = JSON.parse(responseText.replace(/```json/g, '').replace(/```/g, '').trim());
+        return {
+          intent: parsed.intent || 'general_forecast',
+          locationName: parsed.locationName || undefined,
+          isLocationNeeded: parsed.isLocationNeeded ?? true,
+          targetDate: parsed.targetDate || 'today',
+          specificDateStr: parsed.specificDateStr || undefined,
+          timeRange: parsed.timeRange || 'full_day',
+          specificTimeRange: parsed.specificTimeRange || undefined,
+          language: isGujaratiQuery ? 'gu' : (parsed.language || 'en'),
+          confidence: 0.95
+        };
+      } catch (error) {
+        logger.warn('NLU parsing via LLM failed, using heuristic parser:', error);
       }
     }
 
-    // High-performance Heuristic NLU Fallback
-    return this.heuristicNLU(question, language);
+    return this.heuristicNLU(question);
   }
 
-  private heuristicNLU(question: string, language: 'en' | 'gu' | 'hi' | 'hinglish'): ParsedNLU {
+  private heuristicNLU(question: string): ParsedNLU {
     const qLower = question.toLowerCase();
 
     // Intent detection
-    let intent: ParsedNLU['intent'] = 'current_weather';
-    if (
-      qLower.includes('rain') ||
-      qLower.includes('વરસાદ') ||
-      qLower.includes('वर्षा') ||
-      qLower.includes('बारिश') ||
-      qLower.includes('varsad') ||
-      qLower.includes('umbrella') ||
-      qLower.includes('છત્રી') ||
-      qLower.includes('छतरी')
-    ) {
-      intent = qLower.includes('umbrella') || qLower.includes('છત્રી') || qLower.includes('छतरी') ? 'advisory' : 'rain_forecast';
-    } else if (qLower.includes('temp') || qLower.includes('તાપમાન') || qLower.includes('तापमान') || qLower.includes('garmi')) {
+    let intent: ParsedNLU['intent'] = 'general_forecast';
+    if (/rain|varsad|बारिश|મழை|મજ્હા|મળ|પાણી|વરસાદ|chances of rain|umbrella/i.test(question)) {
+      intent = 'rain_forecast';
+    } else if (/right now|currently|current|હાલ|અત્યારે|अभी/i.test(question)) {
+      intent = 'current_weather';
+    } else if (/temp|temperature|તાપમાન|तापमान/i.test(question)) {
       intent = 'temperature';
-    } else if (qLower.includes('forecast') || qLower.includes('3 days') || qLower.includes('આગામી')) {
-      intent = 'general_forecast';
     }
 
-    // Date extraction
+    // Date detection
     let targetDate: ParsedNLU['targetDate'] = 'today';
-    if (
-      qLower.includes('tomorrow') ||
-      qLower.includes('કાલે') ||
-      qLower.includes('કાલે') ||
-      qLower.includes('कल') ||
-      qLower.includes('kal')
-    ) {
+    if (/tomorrow|kale|કાલે|कल/i.test(question)) {
       targetDate = 'tomorrow';
-    } else if (qLower.includes('next 3 days') || qLower.includes('3 days')) {
-      targetDate = 'next_3_days';
+    } else if (/today|aaje|આજે|आज/i.test(question)) {
+      targetDate = 'today';
     }
 
-    // Time range extraction
+    // Time range detection
     let timeRange: ParsedNLU['timeRange'] = 'all_day';
     let specificTimeRange: ParsedNLU['specificTimeRange'] = undefined;
 
-    if (qLower.includes('evening') || qLower.includes('સાંજે') || qLower.includes('शाम')) {
+    if (/evening|shyam|સાંજે|સંજે|શામ/i.test(question)) {
       timeRange = 'evening';
-    } else if (qLower.includes('morning') || qLower.includes('સવારે') || qLower.includes('सुबह')) {
+      specificTimeRange = { startHour: 17, endHour: 21 };
+    } else if (/morning|savare|સવારે|સવાર|सुबह/i.test(question)) {
       timeRange = 'morning';
-    } else if (qLower.includes('afternoon') || qLower.includes('બપોરે') || qLower.includes('दोपहर')) {
+      specificTimeRange = { startHour: 6, endHour: 12 };
+    } else if (/afternoon|bapore|બપોરે|દોપહર/i.test(question)) {
       timeRange = 'afternoon';
-    } else if (qLower.includes('night') || qLower.includes('રાત્રે') || qLower.includes('रात')) {
+      specificTimeRange = { startHour: 12, endHour: 17 };
+    } else if (/night|ratre|રાત્રે|રાત|रात/i.test(question)) {
       timeRange = 'night';
+      specificTimeRange = { startHour: 21, endHour: 23 };
     }
 
-    // Specific hour extraction e.g. "between 5 pm and 8 pm" or "5 pm to 8 pm"
-    const hourRangeMatch = qLower.match(/between\s+(\d{1,2})\s*(pm|am)?\s*(and|to|-)\s*(\d{1,2})\s*(pm|am)?/i);
-    if (hourRangeMatch) {
-      let start = parseInt(hourRangeMatch[1], 10);
-      let end = parseInt(hourRangeMatch[4], 10);
-      const isStartPm = hourRangeMatch[2]?.toLowerCase() === 'pm' || hourRangeMatch[5]?.toLowerCase() === 'pm';
-      if (isStartPm && start < 12) start += 12;
-      if (isStartPm && end < 12) end += 12;
-
-      timeRange = 'specific_hours';
-      specificTimeRange = { startHour: start, endHour: end };
-    }
+    // Language detection
+    const isGujaratiQuery =
+      /[\u0A80-\u0AFF]/.test(question) ||
+      /\b(?:kale|aaje|varsad|padse|hase|nai|ke|sanje|savare|bapore|ma|mein)\b/i.test(question);
+    const language = isGujaratiQuery ? 'gu' : (/[a-zA-Z]/.test(question) ? 'en' : 'hi');
 
     // Location extraction heuristic
     let locationName: string | undefined = undefined;
 
-    // 1. Direct city/landmark check
     const knownCities = [
       'Statue of Unity', 'Somnath Temple', 'Somnath', 'Gir National Park', 'Gir', 'Sabarmati Riverfront', 'Sabarmati',
       'Rajkot Gujarat', 'Rajkot', 'Morbi Gujarat', 'Morbi', 'Ahmedabad', 'Surat', 'Vadodara', 'Mumbai', 'Delhi',
@@ -124,7 +171,6 @@ export class LLMService {
     }
 
     if (!locationName) {
-      // 2. Check Gujarati / Hinglish post-position e.g. "Rajkot Gujarat ma", "Morbi ma"
       const postMatch = question.match(/([A-Za-z\u0A80-\u0AFF\u0900-\u097F\s]{2,30})\s+(?:ma|માં|મા|me|mein)\b/i);
       if (postMatch) {
         let candidate = postMatch[1].trim();
@@ -136,7 +182,6 @@ export class LLMService {
     }
 
     if (!locationName) {
-      // 3. English preposition e.g. "in Rajkot", "at Statue of Unity"
       const inMatch = question.match(/(?:in|at|for|near)\s+([A-Za-z\u0A80-\u0AFF\u0900-\u097F\s]{2,30})/i);
       if (inMatch) {
         let candidate = inMatch[1].trim();
@@ -147,7 +192,6 @@ export class LLMService {
       }
     }
 
-    // Sanitize candidate location name: remove trailing stop-words & state names
     if (locationName) {
       locationName = locationName
         .replace(/\b(?:gujarat|maharashtra|rajasthan|punjab|haryana|delhi|karnataka|kerala|tamilnadu|india|bharat)\b/gi, '')
@@ -176,7 +220,7 @@ export class LLMService {
     weatherData: WeatherData,
     rainAnalysis: RainAnalysisResult
   ): Promise<string> {
-    const tz = weatherData.location.timezone;
+    const tz = weatherData.location.timezone || 'Asia/Kolkata';
     const localNow = getCurrentTimeInTimezone(tz);
     const targetDateStr = getRelativeDateString(nlu.targetDate || 'today', tz, nlu.specificDateStr);
 
@@ -201,16 +245,6 @@ Precipitation / Rain Forecast Analysis for target window (${targetDateStr}):
 - Total Expected Rain Amount: ${rainAnalysis.totalRainAmountMm} mm
 - Has Significant Rain Risk: ${rainAnalysis.hasRainRisk ? 'YES' : 'NO'}
 - Peak Time Window: ${rainAnalysis.peakRainTimeWindow || 'N/A'}
-- Hourly Breakdown (Sample):
-${rainAnalysis.hourlyRainBreakdown
-  .slice(0, 8)
-  .map((h) => `  ${h.time}: ${h.probability}% prob, ${h.amountMm}mm, ${h.condition}`)
-  .join('\n')}
-
-Daily Forecast Summary:
-${weatherData.daily
-  .map((d) => `  ${d.date}: Max ${d.temperatureMax}°C, Min ${d.temperatureMin}°C, Max Rain Prob ${d.precipitationProbabilityMax}%, Rain ${d.precipitationSum}mm, ${d.condition}`)
-  .join('\n')}
 
 Synthesize a clear, concise, accurate answer answering the user's exact question in ${nlu.language}.
 Follow all rules of WeatherGPT system prompt.
@@ -230,7 +264,6 @@ Follow all rules of WeatherGPT system prompt.
       }
     }
 
-    // Rule-based Multi-lingual Fallback Generator
     return this.generateFallbackAnswer(question, nlu, weatherData, rainAnalysis, targetDateStr);
   }
 
@@ -242,21 +275,27 @@ Follow all rules of WeatherGPT system prompt.
     targetDateStr: string
   ): string {
     const loc = weatherData.location.name;
-    const isGujarati = nlu.language === 'gu';
-    const isHindi = nlu.language === 'hi' || nlu.language === 'hinglish';
+    const isGujarati =
+      nlu.language === 'gu' ||
+      /[\u0A80-\u0AFF]/.test(question) ||
+      /\b(?:kale|aaje|varsad|padse|hase|nai|ke|sanje|savare|bapore|ma|mein)\b/i.test(question);
+    const isHindi = !isGujarati && (nlu.language === 'hi' || nlu.language === 'hinglish');
     const isRainQuestion = nlu.intent === 'rain_forecast' || nlu.intent === 'advisory';
+
+    const gujaratiDateLabel = formatGujaratiDate(targetDateStr);
+    const gujaratiTimeLabel = formatGujaratiTimeWindow(rainAnalysis.peakRainTimeWindow);
 
     if (isGujarati) {
       if (isRainQuestion) {
         if (rainAnalysis.maxRainProbability >= 60) {
-          return `${loc} માં ${targetDateStr} ના રોજ વરસાદની શક્યતા ${rainAnalysis.maxRainProbability}% જેટલી વધારે છે (ખાસ કરીને ${rainAnalysis.peakRainTimeWindow || 'સાંજે'}). બહાર જતી વખતે છત્રી કે રેઇનકોટ સાથે રાખવો હિતાવહ છે. અંદાજિત વરસાદ ${rainAnalysis.totalRainAmountMm} mm છે.`;
+          return `${loc} માં ${gujaratiDateLabel} ના રોજ વરસાદની શક્યતા ${rainAnalysis.maxRainProbability}% જેટલી વધારે છે (ખાસ કરીને ${gujaratiTimeLabel}). બહાર જતી વખતે છત્રી કે રેઇનકોટ સાથે રાખવો હિતાવહ છે. અંદાજિત વરસાદ ${rainAnalysis.totalRainAmountMm} mm છે.`;
         } else if (rainAnalysis.maxRainProbability >= 30) {
-          return `${loc} માં ${targetDateStr} ના રોજ વરસાદની હળવી શક્યતા (${rainAnalysis.maxRainProbability}%) છે. વાતાવરણ ${weatherData.current.condition} રહેશે.`;
+          return `${loc} માં ${gujaratiDateLabel} ના રોજ વરસાદની હળવી શક્યતા (${rainAnalysis.maxRainProbability}%) છે. વાતાવરણ ${weatherData.current.condition} રહેશે.`;
         } else {
-          return `${loc} માં ${targetDateStr} ના રોજ વરસાદની શક્યતા ઓછી છે (${rainAnalysis.maxRainProbability}%). તાપમાન ${weatherData.current.temperature}°C ની આસપાસ રહેશે.`;
+          return `${loc} માં ${gujaratiDateLabel} ના રોજ વરસાદની શક્યતા ઓછી છે (${rainAnalysis.maxRainProbability}%). તાપમાન ${weatherData.current.temperature}°C ની આસપાસ રહેશે.`;
         }
       }
-      return `${loc} માં હાલનું તાપમાન ${weatherData.current.temperature}°C છે અને વાતાવરણ ${weatherData.current.condition} છે. ${targetDateStr} ના રોજ મહત્તમ તાપમાન ${weatherData.daily[0]?.temperatureMax || 30}°C રહેશે.`;
+      return `${loc} માં હાલનું તાપમાન ${weatherData.current.temperature}°C છે અને વાતાવરણ ${weatherData.current.condition} છે. ${gujaratiDateLabel} ના રોજ મહત્તમ તાપમાન ${weatherData.daily[0]?.temperatureMax || 30}°C રહેશે.`;
     }
 
     if (isHindi) {
