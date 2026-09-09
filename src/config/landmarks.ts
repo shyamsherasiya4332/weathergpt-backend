@@ -232,6 +232,116 @@ export const LANDMARKS: LandmarkEntry[] = [
     }
   },
   {
+    aliases: ['botad', 'botad gujarat'],
+    location: {
+      name: 'Botad',
+      latitude: 22.1704,
+      longitude: 71.6684,
+      state: 'Gujarat',
+      country: 'India',
+      timezone: 'Asia/Kolkata'
+    }
+  },
+  {
+    aliases: ['amreli', 'amreli gujarat'],
+    location: {
+      name: 'Amreli',
+      latitude: 21.6032,
+      longitude: 71.2216,
+      state: 'Gujarat',
+      country: 'India',
+      timezone: 'Asia/Kolkata'
+    }
+  },
+  {
+    aliases: ['surendranagar', 'surendranagar gujarat'],
+    location: {
+      name: 'Surendranagar',
+      latitude: 22.7274,
+      longitude: 71.6370,
+      state: 'Gujarat',
+      country: 'India',
+      timezone: 'Asia/Kolkata'
+    }
+  },
+  {
+    aliases: ['anand', 'anand gujarat'],
+    location: {
+      name: 'Anand',
+      latitude: 22.5645,
+      longitude: 72.9289,
+      state: 'Gujarat',
+      country: 'India',
+      timezone: 'Asia/Kolkata'
+    }
+  },
+  {
+    aliases: ['nadiad', 'nadiad gujarat'],
+    location: {
+      name: 'Nadiad',
+      latitude: 22.6916,
+      longitude: 72.8634,
+      state: 'Gujarat',
+      country: 'India',
+      timezone: 'Asia/Kolkata'
+    }
+  },
+  {
+    aliases: ['bharuch', 'bharuch gujarat'],
+    location: {
+      name: 'Bharuch',
+      latitude: 21.7051,
+      longitude: 72.9959,
+      state: 'Gujarat',
+      country: 'India',
+      timezone: 'Asia/Kolkata'
+    }
+  },
+  {
+    aliases: ['mehsana', 'mehsana gujarat'],
+    location: {
+      name: 'Mehsana',
+      latitude: 23.5880,
+      longitude: 72.3693,
+      state: 'Gujarat',
+      country: 'India',
+      timezone: 'Asia/Kolkata'
+    }
+  },
+  {
+    aliases: ['patan', 'patan gujarat'],
+    location: {
+      name: 'Patan',
+      latitude: 23.8493,
+      longitude: 72.1266,
+      state: 'Gujarat',
+      country: 'India',
+      timezone: 'Asia/Kolkata'
+    }
+  },
+  {
+    aliases: ['navsari', 'navsari gujarat'],
+    location: {
+      name: 'Navsari',
+      latitude: 20.9467,
+      longitude: 72.9520,
+      state: 'Gujarat',
+      country: 'India',
+      timezone: 'Asia/Kolkata'
+    }
+  },
+  {
+    aliases: ['valsad', 'valsad gujarat'],
+    location: {
+      name: 'Valsad',
+      latitude: 20.5992,
+      longitude: 72.9342,
+      state: 'Gujarat',
+      country: 'India',
+      timezone: 'Asia/Kolkata'
+    }
+  },
+  {
     aliases: ['dwarkadhish temple', 'dwarka temple', 'dwarka'],
     location: {
       name: 'Dwarkadhish Temple',

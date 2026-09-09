@@ -175,18 +175,13 @@ export class WeatherController {
       const targetDateStr = weatherData.daily[0]?.date || new Date().toISOString().split('T')[0];
       const timelineData = timelineService.generateTimeline(weatherData, targetDateStr);
 
-      // 7. Generate Natural Language Answer via WeatherGPT System Prompt
-      let answer = await llmService.generateAnswer(
+      // Natural language answer generation
+      const answer = await llmService.generateAnswer(
         question,
         nlu,
         weatherData,
         rainAnalysis
       );
-
-      // Append Offline Cache Notice if serving cached data
-      if (weatherData.isCached && weatherData.cacheNotice) {
-        answer = `${answer}\n\n⚠️ ${weatherData.cacheNotice}`;
-      }
 
       // 8. Trigger non-blocking Make Webhook if rain threshold is high
       if (rainAnalysis.maxRainProbability >= 70) {
