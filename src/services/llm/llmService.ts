@@ -530,29 +530,36 @@ Follow all rules of WeatherGPT system prompt.
       let summaryHeading = '';
       let rainText = '';
       if (rainProb >= 60) {
-        summaryHeading = `હા, ${stats.timePeriodGu} ${loc} માં હળવાથી મધ્યમ વરસાદની સંભાવના છે.`;
+        summaryHeading = `હા, ${loc} માં ${stats.timePeriodGu} વરસાદી માહોલ રહેશે અને હળવાથી મધ્યમ વરસાદ (${rainProb}% સંભાવના, ~${rainAmount} mm) પડવાની શક્યતા છે.`;
         rainText = `હળવાથી મધ્યમ વરસાદ (${rainProb}% સંભાવના, ~${rainAmount} mm)`;
       } else if (rainProb >= 30) {
-        summaryHeading = `હા, ${stats.timePeriodGu} ${loc} માં હળવા વરસાદના છૂટાછવાયા ઝાપટાં પડવાની શક્યતા છે.`;
+        summaryHeading = `હા, ${loc} માં ${stats.timePeriodGu} વાદળછાયું વાતાવરણ રહેશે અને હળવા ઝાપટાં (${rainProb}% સંભાવના) પડી શકે છે.`;
         rainText = `હળવા ઝાપટાં શક્ય (${rainProb}% સંભાવના)`;
       } else {
-        summaryHeading = `${loc} માં ${stats.timePeriodGu} વાતાવરણ સાફ અને અનુકૂળ રહેશે. વરસાદની શક્યતા ખૂબ જ ઓછી (${rainProb}%) છે.`;
+        summaryHeading = `${loc} માં ${stats.timePeriodGu} વાતાવરણ મુખ્યત્વે ખુલ્લું અને અનુકૂળ રહેશે. વરસાદની શક્યતા નહિવત (${rainProb}%) છે.`;
         rainText = `નહિવત / વરસાદની ઓછી શક્યતા (${rainProb}%)`;
       }
 
-      const tempLabel = 'તાપમાન';
+      let tipText = '';
+      if (rainProb >= 50) {
+        tipText = '\n\n💡 *સલાહ: બહાર નીકળતી વખતે છત્રી અથવા રેઈનકોટ સાથે રાખવો હિતાવહ છે.*';
+      } else if (maxTemp >= 38) {
+        tipText = '\n\n💡 *સલાહ: તાપમાન વધુ હોવાથી બપોરના સમયે તડકાથી બચવું અને પુષ્કળ પાણી પીવું.*';
+      } else if (windSpeed >= 25) {
+        tipText = `\n\n💡 *સલાહ: પવનની ઝડપ ${windSpeed} km/h સુધી હોવાથી વાહન ચલાવતી વખતે સાવચેતી રાખવી.*`;
+      } else if (!stats.isSpecificRange) {
+        tipText = '\n\n💡 *જો તમારે સવારે, બપોરે કે સાંજે કયા સમયે વાતાવરણ કેવું રહેશે તેની કલાકવાર (hourly) વિગત જોઈએ, તો જણાવો.*';
+      }
 
       return `${summaryHeading}
 
 **${loc} – ${stats.labelGu}**
 🌧️ **વરસાદ**: ${rainText}
 🌤️ **આકાશ**: ${gujCond}
-🌡️ **${tempLabel}**: ${minTemp}°C થી ${maxTemp}°C
+🌡️ **તાપમાન**: ${minTemp}°C થી ${maxTemp}°C
 💨 **પવન**: આશરે ${windSpeed} km/h (ભેજ: ${weatherData.current.humidity}%)
 
-— *India Meteorological Department (IMD) / MoES Data*
-
-💡 *જો તમારે બપોરે કે સાંજે કયા સમયે હવામાન કેવું રહેશે તેની કલાકવાર (hourly) વિગત જોઈએ, તો તમે પૂછી શકો છો.*`;
+— *India Meteorological Department (IMD) / MoES Data*${tipText}`;
     }
 
     if (isHindi) {
@@ -561,14 +568,25 @@ Follow all rules of WeatherGPT system prompt.
       let summaryHeading = '';
       let rainText = '';
       if (rainProb >= 60) {
-        summaryHeading = `हां, ${stats.timePeriodHi} ${loc} में हल्की से मध्यम बारिश की संभावना है।`;
+        summaryHeading = `हां, ${loc} में ${stats.timePeriodHi} हल्की से मध्यम बारिश (${rainProb}% संभावना, ~${rainAmount} mm) होने की संभावना है।`;
         rainText = `मध्यम बारिश (${rainProb}% संभावना, ~${rainAmount} mm)`;
       } else if (rainProb >= 30) {
-        summaryHeading = `हां, ${stats.timePeriodHi} ${loc} में हल्की बूंदाबांदी की संभावना (${rainProb}%) है।`;
+        summaryHeading = `हां, ${loc} में ${stats.timePeriodHi} बादल छाए रहेंगे और हल्की बूंदाबांदी (${rainProb}%) संभव है।`;
         rainText = `हल्की बूंदाबांदी संभव (${rainProb}% संभावना)`;
       } else {
-        summaryHeading = `${loc} में ${stats.timePeriodHi} मौसम साफ रहेगा। बारिश की संभावना कम (${rainProb}%) है।`;
+        summaryHeading = `${loc} में ${stats.timePeriodHi} मौसम मुख्यतः साफ और सुहावना रहेगा। बारिश की संभावना कम (${rainProb}%) है।`;
         rainText = `कम संभावना (${rainProb}%)`;
+      }
+
+      let tipText = '';
+      if (rainProb >= 50) {
+        tipText = '\n\n💡 *सलाह: बाहर निकलते समय छाता या रेनकोट साथ रखना बेहतर रहेगा।*';
+      } else if (maxTemp >= 38) {
+        tipText = '\n\n💡 *सलाह: तापमान अधिक रहने के कारण दोपहर में पर्याप्त पानी पीते रहें।*';
+      } else if (windSpeed >= 25) {
+        tipText = `\n\n💡 *सलाह: तेज हवाएं (~${windSpeed} km/h) चलने के कारण सावधानी बरतें।*`;
+      } else if (!stats.isSpecificRange) {
+        tipText = '\n\n💡 *यदि आप सुबह, दोपहर या शाम के समय का विस्तृत पूर्वानुमान जानना चाहते हैं, तो पूछ सकते हैं!*';
       }
 
       return `${summaryHeading}
@@ -579,22 +597,31 @@ Follow all rules of WeatherGPT system prompt.
 🌡️ **तापमान**: ${minTemp}°C से ${maxTemp}°C
 💨 **हवा**: लगभग ${windSpeed} km/h (आर्द्रता: ${weatherData.current.humidity}%)
 
-— *India Meteorological Department (IMD) / MoES Data*
-
-💡 *यदि आप दोपहर या शाम का प्रति घंटे (Hourly Forecast) विवरण जानना चाहते हैं, तो पूछ सकते हैं!*`;
+— *India Meteorological Department (IMD) / MoES Data*${tipText}`;
     }
 
     let summaryHeading = '';
     let rainText = '';
     if (rainProb >= 60) {
-      summaryHeading = `Yes, there is a high chance of light to moderate rain in ${loc} ${stats.timePeriodEn} (${rainProb}% chance).`;
+      summaryHeading = `Yes, there is a high likelihood of light to moderate rain in ${loc} ${stats.timePeriodEn} (${rainProb}% chance, ~${rainAmount} mm).`;
       rainText = `Light to Moderate Rain (${rainProb}% chance, ~${rainAmount} mm)`;
     } else if (rainProb >= 30) {
       summaryHeading = `Yes, there is a moderate chance of light rain/showers in ${loc} ${stats.timePeriodEn} (${rainProb}% chance).`;
       rainText = `Light Rain / Showers possible (${rainProb}% chance)`;
     } else {
-      summaryHeading = `Rain is unlikely in ${loc} ${stats.timePeriodEn} (only ${rainProb}% probability). Skies will be pleasant.`;
+      summaryHeading = `Rain is unlikely in ${loc} ${stats.timePeriodEn} (only ${rainProb}% probability). Weather will be clear and pleasant.`;
       rainText = `Unlikely (${rainProb}% chance)`;
+    }
+
+    let tipText = '';
+    if (rainProb >= 50) {
+      tipText = '\n\n💡 *Tip: Carrying an umbrella or raincoat is recommended.*';
+    } else if (maxTemp >= 38) {
+      tipText = '\n\n💡 *Tip: High temperatures expected. Stay hydrated throughout the day.*';
+    } else if (windSpeed >= 25) {
+      tipText = `\n\n💡 *Tip: Strong winds (~${windSpeed} km/h) expected, drive carefully.*`;
+    } else if (!stats.isSpecificRange) {
+      tipText = '\n\n💡 *Would you like an hourly breakdown for morning, afternoon, or evening? Just ask!*';
     }
 
     return `${summaryHeading}
@@ -605,9 +632,7 @@ Follow all rules of WeatherGPT system prompt.
 🌡️ **Temperature**: ${minTemp}°C to ${maxTemp}°C
 💨 **Wind**: ~${windSpeed} km/h (Humidity: ${weatherData.current.humidity}%)
 
-— *India Meteorological Department (IMD) / MoES Data*
-
-💡 *Would you like an hourly breakdown for afternoon or evening? Just ask!*`;
+— *India Meteorological Department (IMD) / MoES Data*${tipText}`;
   }
 }
 

@@ -13,6 +13,9 @@ const envSchema = z.object({
   OPENAI_API_KEY: z.string().optional().default(''),
   OPENAI_BASE_URL: z.string().default('https://api.openai.com/v1'),
   LLM_MODEL: z.string().default('gpt-4o-mini'),
+  GROQ_API_KEY: z.string().optional().default(''),
+  OPENROUTER_API_KEY: z.string().optional().default(''),
+  GEMINI_API_KEY: z.string().optional().default(''),
 
   // Weather Provider Config
   WEATHER_API_KEY: z.string().optional().default(''),
