@@ -54,13 +54,11 @@ export class WeatherController {
 
       // 2. Language Detection across all 22 official Indian languages + Hinglish
       const detectedLang = languageService.detect(question);
-      const effectiveLanguage = reqLanguage || (detectedLang.code !== 'en' ? detectedLang.code : undefined);
+      const effectiveLanguage = reqLanguage || detectedLang.code;
 
       // 3. NLU & Intent parsing
       const nlu = await llmService.parseNLU(question);
-      if (effectiveLanguage) {
-        nlu.language = effectiveLanguage;
-      }
+      nlu.language = effectiveLanguage;
 
       // Check Greeting Intent (e.g. "hello", "hi", "kem cho", "namaste", "halo", "ram ram")
       const isGreetingPattern = /^(?:hello|hi|hey|helo|kem\s*cho|namaste|namaskar|halo|ram\s*ram|su\s*prabhat|good\s*morning|good\s*evening|good\s*afternoon|good\s*night|pranam|jay\s*shree\s*krishna|har\s*har\s*mahadev|kaisa\s*ho|નમસ્તે|નમસ્કાર|કેમ\s*છો|હલો|પ્રણામ|હાય|હેલો|હરિ\s*ઓમ)\b/i.test(question.trim());

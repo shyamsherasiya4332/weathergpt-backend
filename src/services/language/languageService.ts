@@ -90,10 +90,15 @@ export class LanguageService {
       primaryCode = 'ur'; primaryName = 'Urdu'; script = 'Arabic';
     } else if (isMeetei) {
       primaryCode = 'mni'; primaryName = 'Manipuri'; script = 'Meetei Mayek';
-    } else if (isLatin && this.isGujlish(text)) {
-      primaryCode = 'gu'; primaryName = 'Gujarati'; script = 'Latin';
-    } else if (isLatin && this.isHinglish(text)) {
-      primaryCode = 'hinglish'; primaryName = 'Hinglish'; script = 'Latin';
+    } else if (isLatin) {
+      const gujScore = this.getGujlishScore(text);
+      const hinScore = this.getHinglishScore(text);
+
+      if (hinScore > gujScore && hinScore > 0) {
+        primaryCode = 'hinglish'; primaryName = 'Hinglish'; script = 'Latin';
+      } else if (gujScore > 0) {
+        primaryCode = 'gu'; primaryName = 'Gujarati'; script = 'Latin';
+      }
     }
 
     const scriptsPresent = [isDevanagari, isLatin, isGujarati, isBengaliAssamese, isTamil, isTelugu, isKannada, isMalayalam, isGurmukhi, isOdia, isArabic, isMeetei].filter(Boolean).length;
@@ -127,16 +132,30 @@ export class LanguageService {
     return /[\u0900-\u0D7F\uABC0-\uABFF]/.test(text);
   }
 
-  private isGujlish(text: string): boolean {
-    const gujlishWords = ['varsad', 'padse', 'hase', 'savare', 'bapore', 'paramdivas', 'paramdivase', 'peramdivas', 'bafaro', 'thandi', 'garmi', 'kevi', 'kevo', 'kevu', 'che', 'chhe', 'uper', 'par', 'per', 'aaje', 'kale', 'vatavaran', 'weatherkevu'];
+  private getGujlishScore(text: string): number {
+    const uniqueGujlish = ['varsad', 'padse', 'hase', 'kevi', 'kevo', 'kevu', 'chhe', 'bapore', 'savare', 'sanje', 'aaje', 'vatavaran', 'ketlu', 'ketli', 'ketla', 'kem', 'cho', 'weatherkevu'];
+    const commonGujlish = ['che', 'nai', 'ke', 'paramdivas', 'thandi', 'garmi', 'uper', 'par', 'per', 'su', 'tamari', 'halo'];
+
     const words = text.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/);
-    return words.some(w => gujlishWords.includes(w));
+    let score = 0;
+    for (const w of words) {
+      if (uniqueGujlish.includes(w)) score += 2;
+      else if (commonGujlish.includes(w)) score += 1;
+    }
+    return score;
   }
   
-  private isHinglish(text: string): boolean {
-    const hinglishWords = ['hai', 'kya', 'aur', 'bhai', 'haan', 'nahi', 'karo', 'chalo', 'main', 'tum', 'me', 'mein', 'kal', 'hoga', 'hogi', 'kab', 'ho', 'bhi', 'toh', 'par', 'per', 'batao', 'kaisa', 'kaisi'];
+  private getHinglishScore(text: string): number {
+    const uniqueHinglish = ['hoga', 'hogi', 'batao', 'kaisa', 'kaisi', 'kab', 'hai', 'mein', 'nahi', 'karo', 'main', 'tum'];
+    const commonHinglish = ['kya', 'kal', 'aur', 'bhai', 'haan', 'chalo', 'me', 'ho', 'bhi', 'toh', 'par', 'per'];
+
     const words = text.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/);
-    return words.some(w => hinglishWords.includes(w));
+    let score = 0;
+    for (const w of words) {
+      if (uniqueHinglish.includes(w)) score += 2;
+      else if (commonHinglish.includes(w)) score += 1;
+    }
+    return score;
   }
 }
 
