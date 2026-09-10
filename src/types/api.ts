@@ -120,6 +120,10 @@ export interface AskResponseSuccess {
   climateAnomaly?: import('../services/climate/climateService.js').ClimateAnomaly;
   emergencyNotification?: import('../services/notifications/notificationService.js').PushNotificationPayload | null;
   weatherInfographic?: import('../services/image/imageService.js').WeatherInfographicCard;
+  moes_bulletin?: import('../services/moes/moesService.js').MoESBulletin;
+  suggested_followups?: string[];
+  climate_fact?: string;
+  ui_widgets?: Array<{ type: string; title: string; data: any }>;
   generated_at: string;
 }
 

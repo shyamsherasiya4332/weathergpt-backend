@@ -373,5 +373,19 @@ describe('POST /api/ask - Natural Language Weather Queries', () => {
     expect(res.body.language).toBe('pa');
     expect(res.body.answer).toMatch(/ਮੌਸਮ|ਤਾਪਮਾਨ|ਸਾਫ਼/i);
   });
+
+  it('14. Should return official MoES Bulletin endpoint response', async () => {
+    jest.spyOn(openMeteoProvider, 'getWeatherData').mockResolvedValueOnce(mockWeatherData);
+
+    const res = await request(app)
+      .get('/api/moes/bulletin?location=Ahmedabad');
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.ministry).toMatch(/Ministry of Earth Sciences/i);
+    expect(res.body.bulletin.agri).toBeDefined();
+    expect(res.body.bulletin.marine).toBeDefined();
+    expect(res.body.bulletin.suggestedFollowups).toBeDefined();
+  });
 });
 

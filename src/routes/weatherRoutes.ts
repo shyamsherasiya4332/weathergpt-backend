@@ -16,4 +16,8 @@ router.get('/meta', (req, res) => {
   weatherController.handleGetMeta(req, res);
 });
 
+router.all('/moes/bulletin', (req, res, next) => {
+  weatherController.handleMoesBulletin(req, res, next);
+});
+
 export const weatherRoutes = router;

@@ -12,6 +12,7 @@ import { weatherService } from '../services/weather/weatherService.js';
 import { climateService } from '../services/climate/climateService.js';
 import { imageService } from '../services/image/imageService.js';
 import { notificationService } from '../services/notifications/notificationService.js';
+import { moesService } from '../services/moes/moesService.js';
 import { ApiErrorResponse, AskResponseSuccess } from '../types/api.js';
 import { logger } from '../utils/logger.js';
 
@@ -369,6 +370,7 @@ export class WeatherController {
       const climateAnomaly = climateService.analyzeClimateAnomaly(weatherData);
       const emergencyNotification = notificationService.generateNotificationPayload(weatherData, riskScores);
       const weatherInfographic = imageService.generateWeatherCardSvg(weatherData, riskScores);
+      const moesBulletin = moesService.generateBulletin(weatherData, rainAnalysis, riskScores, nlu.language, question);
 
       // 9. Return Enriched Production JSON Response
       const responsePayload: AskResponseSuccess = {
@@ -415,6 +417,10 @@ export class WeatherController {
         climateAnomaly,
         emergencyNotification,
         weatherInfographic,
+        moes_bulletin: moesBulletin,
+        suggested_followups: moesBulletin.suggestedFollowups,
+        climate_fact: moesBulletin.climateFact,
+        ui_widgets: moesBulletin.uiWidgets,
         generated_at: new Date().toISOString()
       };
 
@@ -450,11 +456,45 @@ export class WeatherController {
     }
   }
 
+  async handleMoesBulletin(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const locationName = (req.query.location || req.body.locationName || 'Ahmedabad') as string;
+      const lang = (req.query.lang || req.body.language || 'en') as string;
+
+      const weatherResult = await weatherService.resolveAndFetchWeather(undefined, locationName);
+      if (weatherResult.error || !weatherResult.weatherData) {
+        res.status(404).json({
+          success: false,
+          error: { code: 'WEATHER_FETCH_FAILED', message: 'Could not fetch weather data for bulletin.' }
+        });
+        return;
+      }
+
+      const weatherData = weatherResult.weatherData;
+      const rainAnalysis = weatherService.analyzeRainForecast(weatherData, { intent: 'general_forecast', isLocationNeeded: true, language: lang, confidence: 1 });
+      const riskScores = riskService.calculateRiskScores(weatherData, rainAnalysis);
+      const bulletin = moesService.generateBulletin(weatherData, rainAnalysis, riskScores, lang, `Weather bulletin for ${locationName}`);
+
+      res.json({
+        success: true,
+        project: 'WeatherGPT: Conversational AI for Weather Forecasting, Alerts, and Climate Information',
+        ministry: 'Ministry of Earth Sciences (MoES)',
+        location: weatherData.location,
+        bulletin,
+        generated_at: new Date().toISOString()
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
   handleGetMeta(req: Request, res: Response): void {
     res.json({
       success: true,
       service: 'WeatherGPT AI Backend API',
-      version: '2.0.0',
+      version: '2.5.0',
+      project: 'WeatherGPT: Conversational AI for Weather Forecasting, Alerts, and Climate Information',
+      ministry: 'Ministry of Earth Sciences (MoES)',
       supportedLanguages: [
         { code: 'gu', name: 'Gujarati (ગુજરાતી)', script: 'Gujarati' },
         { code: 'hi', name: 'Hindi (हिन्दी)', script: 'Devanagari' },
@@ -500,6 +540,7 @@ export class WeatherController {
         ask: 'POST /api/ask',
         weather: 'POST /api/weather',
         alerts: 'POST /api/alerts',
+        bulletin: 'GET /api/moes/bulletin',
         transcribe: 'POST /api/voice/transcribe',
         speak: 'POST /api/voice/speak',
         voiceAsk: 'POST /api/voice/ask',
