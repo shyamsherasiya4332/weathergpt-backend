@@ -567,6 +567,9 @@ Follow all rules of WeatherGPT system prompt.
       const gujCond = translateConditionToGujarati(stats.condition);
       const peakTimingGu = rainAnalysis.peakRainTimeWindow ? ` (સૌથી વધુ શક્યતા આશરે ${rainAnalysis.peakRainTimeWindow})` : '';
 
+      const isRelativeQuery = /my\s*location|mara\s*location|mare\s*location|near\s*me|here|uper|per|par|અહીં|અહીંનું|મારી\s*જગ્યા|મેરે\s*પાસ|મેરે\s*શહર/i.test(question);
+      const locPrefixGu = isRelativeQuery ? `તમારા હાલના location ${loc} મુજબ ` : `${loc} માં `;
+
       if (isGarmiQuery) {
         let garmiLevel = '';
         if (maxTemp >= 38) {
@@ -580,10 +583,10 @@ Follow all rules of WeatherGPT system prompt.
         }
 
         if (!isDetailRequested) {
-          return `${loc} માં ${stats.timePeriodGu} ${garmiLevel} ☀️. મહત્તમ તાપમાન ${maxTemp}°C અને ન્યૂનતમ તાપમાન ${minTemp}°C આસપાસ રહેશે 🌡️. પવનની ઝડપ આશરે ${windSpeed} km/h (ભેજ: ${weatherData.current.humidity}%) રહેશે અને વરસાદની શક્યતા નહિવત (${rainProb}%) છે.\n\n💡 *સલાહ: તડકામાં બહાર નીકળતી વખતે પુષ્કળ પાણી પીવું અને સુતરાઉ કપડાં પહેરવા.*`;
+          return `${locPrefixGu}${stats.timePeriodGu} ${garmiLevel} ☀️. મહત્તમ તાપમાન ${maxTemp}°C અને ન્યૂનતમ તાપમાન ${minTemp}°C આસપાસ રહેશે 🌡️. પવનની ઝડપ આશરે ${windSpeed} km/h (ભેજ: ${weatherData.current.humidity}%) રહેશે અને વરસાદની શક્યતા નહિવત (${rainProb}%) છે.\n\n💡 *સલાહ: તડકામાં બહાર નીકળતી વખતે પુષ્કળ પાણી પીવું અને સુતરાઉ કપડાં પહેરવા.*`;
         }
 
-        return `${loc} માં ${stats.timePeriodGu} ${garmiLevel}.
+        return `${locPrefixGu}${stats.timePeriodGu} ${garmiLevel}.
 
 **${loc} – ${stats.labelGu}**
 🌡️ **તાપમાન**: ${minTemp}°C થી ${maxTemp}°C
@@ -596,17 +599,17 @@ Follow all rules of WeatherGPT system prompt.
 
       if (isRainQuery) {
         if (rainProb >= 50) {
-          return `હા, ${loc} માં ${stats.timePeriodGu} વરસાદી માહોલ રહેશે 🌧️. આશરે ${rainProb}% સંભાવના સાથે હળવાથી મધ્યમ વરસાદ (~${rainAmount} mm) પડવાની શક્યતા છે${peakTimingGu}. બહાર નીકળતી વખતે સાથે છત્રી અથવા રેઈનકોટ રાખવો હિતાવહ છે ☂️.\n\n🌡️ તાપમાન: ${minTemp}°C થી ${maxTemp}°C | 💨 પવન: આશરે ${windSpeed} km/h (ભેજ: ${weatherData.current.humidity}%)`;
+          return `હા, ${locPrefixGu}${stats.timePeriodGu} વરસાદી માહોલ રહેશે 🌧️. આશરે ${rainProb}% સંભાવના સાથે હળવાથી મધ્યમ વરસાદ (~${rainAmount} mm) પડવાની શક્યતા છે${peakTimingGu}. બહાર નીકળતી વખતે સાથે છત્રી અથવા રેઈનકોટ રાખવો હિતાવહ છે ☂️.\n\n🌡️ તાપમાન: ${minTemp}°C થી ${maxTemp}°C | 💨 પવન: આશરે ${windSpeed} km/h (ભેજ: ${weatherData.current.humidity}%)`;
         } else if (rainProb >= 25) {
-          return `હા, ${loc} માં ${stats.timePeriodGu} વાદળછાયું વાતાવરણ રહેશે અને હળવા ઝાપટાં (${rainProb}% સંભાવના${peakTimingGu}) પડી શકે છે 🌤️. તાપમાન ${minTemp}°C થી ${maxTemp}°C વચ્ચે રહેશે.`;
+          return `હા, ${locPrefixGu}${stats.timePeriodGu} વાદળછાયું વાતાવરણ રહેશે અને હળવા ઝાપટાં (${rainProb}% સંભાવના${peakTimingGu}) પડી શકે છે 🌤️. તાપમાન ${minTemp}°C થી ${maxTemp}°C વચ્ચે રહેશે.`;
         } else {
-          return `${loc} માં ${stats.timePeriodGu} વાતાવરણ મુખ્યત્વે સાફ અને ખુલ્લું રહેશે 🌤️. વરસાદની શક્યતા ખૂબ જ ઓછી (${rainProb}%) છે. તાપમાન ${minTemp}°C થી ${maxTemp}°C વચ્ચે રહેશે 🌡️.`;
+          return `${locPrefixGu}${stats.timePeriodGu} વાતાવરણ મુખ્યત્વે સાફ અને ખુલ્લું રહેશે 🌤️. વરસાદની શક્યતા ખૂબ જ ઓછી (${rainProb}%) છે. તાપમાન ${minTemp}°C થી ${maxTemp}°C વચ્ચે રહેશે 🌡️.`;
         }
       }
 
       // General query response
       if (!isDetailRequested) {
-        let generalSummary = `${loc} માં ${stats.timePeriodGu} વાતાવરણ મુખ્યત્વે ${gujCond} અને સાફ રહેશે 🌤️. તાપમાન ${minTemp}°C થી ${maxTemp}°C ની વચ્ચે રહેશે અને પવનની ઝડપ આશરે ${windSpeed} km/h (ભેજ: ${weatherData.current.humidity}%) રહેશે 💨.`;
+        let generalSummary = `${locPrefixGu}${stats.timePeriodGu} વાતાવરણ મુખ્યત્વે ${gujCond} અને સાફ રહેશે 🌤️. હાલમાં તાપમાન ${minTemp}°C થી ${maxTemp}°C ની વચ્ચે રહેશે અને પવનની ઝડપ આશરે ${windSpeed} km/h (ભેજ: ${weatherData.current.humidity}%) રહેશે 💨. IMD મુજબ આજે હળવા વરસાદની ઓછી સંભાવના છે.`;
         if (rainProb >= 40) {
           generalSummary += ` છૂટાછવાયા વરસાદની ${rainProb}% સંભાવના છે 🌧️.`;
         } else {

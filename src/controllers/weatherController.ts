@@ -195,9 +195,11 @@ export class WeatherController {
         nlu.specificDateStr = festivalMatch.dateRange.start;
       }
 
-      // 4. Resolve Location (Explicit > Question > Conversation Memory)
+      // 4. Resolve Location (Explicit > Question > Conversation Memory > Relative Query Fallback)
       let finalLocationInput = locationInput;
       let extractedName = nlu.locationName;
+
+      const isRelativeQuery = /my\s*location|mara\s*location|mare\s*location|near\s*me|here|uper|per|par|અહીં|અહીંનું|મારી\s*જગ્યા|મેરે\s*પાસ|મેરે\s*શહર/i.test(question);
 
       if (!finalLocationInput && !extractedName && convContext?.locationName) {
         logger.info(`Using conversation memory location '${convContext.locationName}' for follow-up query.`);
@@ -209,6 +211,11 @@ export class WeatherController {
             longitude: convContext.longitude
           };
         }
+      }
+
+      if (!finalLocationInput && !extractedName && isRelativeQuery) {
+        logger.info(`Relative location query detected without explicit coordinates or memory. Defaulting to 'Ahmedabad'.`);
+        extractedName = 'Ahmedabad';
       }
 
       const weatherResult = await weatherService.resolveAndFetchWeather(
