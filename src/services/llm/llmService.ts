@@ -348,7 +348,9 @@ Extract JSON:
     const qLower = question.toLowerCase();
 
     let intent: ParsedNLU['intent'] = 'general_forecast';
-    if (/garmi|ગરમી|ગરીમી|bafaro|બફારો|thandi|ઠંડી|તાપમાન|तापमान|गर्मी|ठंड|temp|temperature|heat|hot|cold|warm|degree|ડિગ્રી/i.test(question)) {
+    if (/^(?:hello|hi|hey|helo|kem\s*cho|namaste|namaskar|halo|ram\s*ram|su\s*prabhat|good\s*morning|good\s*evening|good\s*afternoon|good\s*night|pranam|jay\s*shree\s*krishna|har\s*har\s*mahadev|kaisa\s*ho|નમસ્તે|નમસ્કાર|કેમ\s*છો|હલો|પ્રણામ|હાય|હેલો|હરિ\s*ઓમ)\b/i.test(question.trim())) {
+      intent = 'greeting';
+    } else if (/garmi|ગરમી|ગરીમી|bafaro|બફારો|thandi|ઠંડી|તાપમાન|तापमान|गर्मी|ठंड|temp|temperature|heat|hot|cold|warm|degree|ડિગ્રી/i.test(question)) {
       intent = 'temperature';
     } else if (/rain|varsad|बारिश|મழை|મજ્હા|મળ|પાણી|વરસાદ|chances of rain|umbrella/i.test(question)) {
       intent = 'rain_forecast';
@@ -670,6 +672,55 @@ Follow all rules of WeatherGPT system prompt.
       }
     }
     return `Weather in ${loc} ${stats.timePeriodEn} will be mostly ${stats.condition} 🌤️. Temperature will range from ${minTemp}°C to ${maxTemp}°C with wind speeds around ${windSpeed} km/h 💨.`;
+  }
+
+  async generateGreeting(question: string, language: string): Promise<string> {
+    const fullLangName = languageService.getLanguageName(language);
+
+    if (openAIClient.isConfigured()) {
+      try {
+        const prompt = `User sent greeting: "${question}". Synthesize a warm, polite, dynamic greeting in ${fullLangName}. Introduce yourself as WeatherGPT and ask which city or village weather they want to check today. Keep it 1-2 natural sentences with appropriate emojis.`;
+        const res = await openAIClient.generateChatCompletion(
+          'You are WeatherGPT, a friendly AI weather assistant for India.',
+          prompt
+        );
+        if (res && res.trim()) return res.trim();
+      } catch (err) {
+        logger.warn('LLM greeting generation failed, using fallback:', err);
+      }
+    }
+
+    const gujGreetings = [
+      'નમસ્તે! 🙏 હું WeatherGPT છું. હું તમને ભારતના કોઈપણ શહેર કે ગામનું લાઈવ હવામાન જણાવવામાં મદદ કરી શકું છું. તમારે કયા લોકેશનનું હવામાન જાણવું છે?',
+      'હલો! 😊 WeatherGPT માં તમારું સ્વાગત છે. આજે તમે કયા સ્થળનું તાપમાન કે વરસાદનું એનાલિસિસ જોવા માંગો છો? મને જણાવો!',
+      'નમસ્કાર! 🌤️ હું તમારો WeatherGPT આસિસ્ટન્ટ છું. તમારે કયા શહેર કે ગામ વિશે હવામાન પૂછવું છે?',
+      'જય શ્રી કૃષ્ણ! 🙏 WeatherGPT આપની સેવામાં હાજર છે. તમને કયા લોકેશનનું લાઈવ વેધર અપડેટ જોઈએ છે?'
+    ];
+
+    const hiGreetings = [
+      'नमस्ते! 🙏 मैं WeatherGPT हूँ। मैं भारत के किसी भी शहर या गाँव के सटीक मौसम की जानकारी दे सकता हूँ। आप किस स्थान का मौसम जानना चाहते हैं?',
+      'हेलो! 🌤️ WeatherGPT में आपका स्वागत है। आज आप किस शहर का तापमान या बारिश का अपडेट देखना चाहते हैं?',
+      'नमस्कार! 😊 मैं आपका WeatherGPT असिस्टेंट हूँ। कृपया अपना शहर या गाँव बताएं जिसका मौसम आप जानना चाहते हैं।'
+    ];
+
+    const enGreetings = [
+      'Hello! 👋 I am WeatherGPT, your AI weather assistant. Which city or village weather would you like to check today?',
+      'Greetings! 🌤️ Welcome to WeatherGPT. Please tell me which location\'s live weather forecast you\'d like to see!',
+      'Hi there! 😊 How can I help you today? Please mention the location whose weather you want to explore.'
+    ];
+
+    const mrGreetings = [
+      'नमस्कार! 🙏 मी WeatherGPT आहे. मी आपल्याला कोणत्याही शहराचे किंवा गावाचे लाईव्ह हवामान सांगण्यास मदत करू शकतो. आपल्याला कोणत्या ठिकाणाचे हवामान जाणून घ्यायचे आहे?',
+      'हॅलो! 🌤️ WeatherGPT मध्ये आपले स्वागत आहे. आज आपण कोणत्या शहराचे हवामान पाहू इच्छिता?'
+    ];
+
+    const isGu = language === 'gu' || /[\u0A80-\u0AFF]/.test(question) || /kem\s*cho|namaste|halo|ram\s*ram|su\s*prabhat/i.test(question);
+    const isHi = !isGu && (language === 'hi' || language === 'hinglish' || /namaste|kaisa\s*ho/i.test(question));
+    const isMr = !isGu && !isHi && (language === 'mr' || /नमस्कार/i.test(question));
+
+    const pool = isGu ? gujGreetings : isHi ? hiGreetings : isMr ? mrGreetings : enGreetings;
+    const randomIndex = Math.floor(Math.random() * pool.length);
+    return pool[randomIndex];
   }
 }
 

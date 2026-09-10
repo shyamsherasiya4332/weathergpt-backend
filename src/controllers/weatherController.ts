@@ -62,6 +62,21 @@ export class WeatherController {
         nlu.language = effectiveLanguage;
       }
 
+      // Check Greeting Intent (e.g. "hello", "hi", "kem cho", "namaste", "halo", "ram ram")
+      const isGreetingPattern = /^(?:hello|hi|hey|helo|kem\s*cho|namaste|namaskar|halo|ram\s*ram|su\s*prabhat|good\s*morning|good\s*evening|good\s*afternoon|good\s*night|pranam|jay\s*shree\s*krishna|har\s*har\s*mahadev|kaisa\s*ho|નમસ્તે|નમસ્કાર|કેમ\s*છો|હલો|પ્રણામ|હાય|હેલો|હરિ\s*ઓમ)\b/i.test(question.trim());
+      if (nlu.intent === 'greeting' || isGreetingPattern) {
+        logger.info(`Handling greeting intent for query: "${question}"`);
+        const greetingAns = await llmService.generateGreeting(question, nlu.language);
+        res.json({
+          success: true,
+          answer: greetingAns,
+          language: nlu.language,
+          conversationId: convContext?.id,
+          generated_at: new Date().toISOString()
+        });
+        return;
+      }
+
       // Check Affirmative Follow-up (e.g. "yes", "ha", "haan", "હા", "हाँ", "ok", "sure", "bato")
       const isAffirmative = /^(?:yes|ha|haan|haa|haanji|હા|हाँ|ok|okay|sure|yeah|yep|yup|hange|true|bato|kaho|aapo|ha\s+bato|ha\s+aapo|baporo|sanj)$/i.test(question.trim());
       if ((nlu.intent === 'follow_up_time_breakdown' || isAffirmative) && convContext?.lastWeatherData) {
