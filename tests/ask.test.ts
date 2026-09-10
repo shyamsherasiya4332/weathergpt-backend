@@ -387,5 +387,42 @@ describe('POST /api/ask - Natural Language Weather Queries', () => {
     expect(res.body.bulletin.marine).toBeDefined();
     expect(res.body.bulletin.suggestedFollowups).toBeDefined();
   });
+
+  // Test 15: Specific intent queries (laundry, travel, humidity)
+  it('15a. Should return intent-specific answer for laundry query "આજે મોરબીમાં કપડાં સુકવી શકાય?"', async () => {
+    jest.spyOn(openMeteoProvider, 'getWeatherData').mockResolvedValueOnce(mockWeatherData);
+
+    const res = await request(app)
+      .post('/api/ask')
+      .send({ question: 'આજે મોરબીમાં કપડાં સુકવી શકાય?' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.answer).toMatch(/કપડાં|સુકવવા/i);
+  });
+
+  it('15b. Should return intent-specific answer for travel query "આજે મુસાફરી કરી શકાય?"', async () => {
+    jest.spyOn(openMeteoProvider, 'getWeatherData').mockResolvedValueOnce(mockWeatherData);
+
+    const res = await request(app)
+      .post('/api/ask')
+      .send({ question: 'આજે મુસાફરી કરી શકાય?' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.answer).toMatch(/મુસાફરી|હવામાન|અનુકૂળ|રસ્તા/i);
+  });
+
+  it('15c. Should return intent-specific answer for humidity query "મોરબીમાં બફારો કેવો રહેશે?"', async () => {
+    jest.spyOn(openMeteoProvider, 'getWeatherData').mockResolvedValueOnce(mockWeatherData);
+
+    const res = await request(app)
+      .post('/api/ask')
+      .send({ question: 'મોરબીમાં બફારો કેવો રહેશે?' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.answer).toMatch(/ભેજ|બફારો/i);
+  });
 });
 

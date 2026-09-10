@@ -502,7 +502,16 @@ CRITICAL LANGUAGE REQUIREMENT: You MUST synthesize your response strictly in the
 - If in Hinglish or Gujlish (Roman script), reply in Hinglish/Gujlish using Roman script.
 - Do NOT default to English unless the question was originally asked in English.
 
-User Intent Focus: ${nlu.intent} (${nlu.intent === 'temperature' ? 'User explicitly asks about GARMI / HEAT / TEMPERATURE. Answer MUST immediately focus on heat, temperature range, and heat comfort!' : nlu.intent === 'rain_forecast' ? 'User explicitly asks about RAIN.' : 'General Weather'})
+User Intent Focus: ${nlu.intent}
+Specific Question Guidance: Answer the user's EXACT question directly in the very first sentence. For example:
+- If user asks about drying clothes/laundry: Focus immediately on outdoor drying suitability and rain risk!
+- If user asks about travel/driving: Focus immediately on highway road conditions and rain/wind safety!
+- If user asks about humidity/bafaro: Focus immediately on humidity % and mugginess!
+- If user asks about wind: Focus immediately on wind speed in km/h and gustiness!
+- If user asks about cold/thandi: Focus immediately on minimum temperature drop and jacket/sweater advice!
+- If user asks about umbrella/raincoat: Answer directly whether an umbrella is required!
+- Do NOT output repetitive generic templates across different queries. Make the answer unique to "${weatherData.location.name}" and the user's question.
+
 Location: ${weatherData.location.name}, ${weatherData.location.state || ''} ${weatherData.location.country || ''}
 Local Timezone: ${tz}
 Current Local Date & Time: ${localNow}
@@ -524,7 +533,6 @@ Precipitation / Rain Forecast Analysis for target window (${targetDateStr}):
 - Peak Time Window: ${rainAnalysis.peakRainTimeWindow || 'N/A'}
 
 Synthesize a clear, concise, accurate answer answering the user's exact question in ${fullLangName} (${nlu.language}).
-If the user asks about GARMI / HEAT, address heat and temperature levels FIRST before rain details.
 Follow all rules of WeatherGPT system prompt.
 `;
 
@@ -558,164 +566,195 @@ Follow all rules of WeatherGPT system prompt.
       nlu.language === 'gu' ||
       /[\u0A80-\u0AFF]/.test(question) ||
       /\b(?:kale|aaje|varsad|padse|hase|nai|ke|sanje|savare|bapore|ma|mein|garmi|thandi)\b/i.test(question);
-    const isMarathi = !isGujarati && (nlu.language === 'mr' || (/[\u0900-\u097F]/.test(question) && /कसे|हवामान|आहे|आज|मुंबई|पुणे|नागपूर|कसा|कशी|झाले|काय|नाही|मध्ये/i.test(question)));
+    const isMarathi = !isGujarati && (nlu.language === 'mr' || (/[\u0900-\u097F]/.test(question) && /कसे|हवामान|आहे|आज|मुंबई|पुणे|नागपूर|कसा|कशी|झाले|काय|નાही|मध्ये/i.test(question)));
     const isHindi = !isGujarati && !isMarathi && (nlu.language === 'hi' || nlu.language === 'hinglish');
 
-    const stats = getTimeRangeStats(weatherData, targetDateStr, nlu.timeRange, nlu.specificTimeRange);
+    const isLaundryQuery = /kapda|કપડાં|સુકવવા|कपड़े|wash|dry|dhova|kapada/i.test(question);
+    const isTravelQuery = /travel|driving|trip|musafari|મુસાફરી|જવું|નિક્ળવું|jaay|jaai|સફર|હાઇવે|highway|road/i.test(question);
+    const isHumidityQuery = /bafaro|બફારો|ભેજ|humidity|moisture|bafara/i.test(question);
+    const isWindQuery = /pavan|પવન|hawa|wind|storm|ઝડપ|દિશા|hava/i.test(question);
+    const isColdQuery = /thandi|ઠંડી|cold|chilly|winter|jacket|sweater|ગરમ/i.test(question);
+    const isUmbrellaQuery = /chhatri|છત્રી|umbrella|raincoat|રેઈનકોટ|લેવી/i.test(question);
+    const isAgriQuery = /kheti|ખેતી|પાક|crop|farm|pesticide|irrigation|ખાતર|ખેડૂત/i.test(question);
+    const isAqiQuery = /aqi|પ્રદૂષણ|pollution|air quality|હવા/i.test(question);
+    const isNightQuery = /ratre|રાત્રે|night|મોડી/i.test(question);
+    const isMorningQuery = /savare|સવારે|morning/i.test(question);
+    const isEveningQuery = /sanje|સાંજે|evening/i.test(question);
+    const isGarmiQuery = nlu.intent === 'temperature' || /garmi|ગરમી|ગરીમી|તાપમાન|temp|heat|hot/i.test(question);
+    const isRainQuery = nlu.intent === 'rain_forecast' || /rain|varsad|વરસાદ|ઝાપટાં|બુંદાબુંદી|बारिश/i.test(question);
+    const isDetailRequested = /detail|report|full|card|dashboard|રિપોર્ટ|વિગત/i.test(question);
 
+    const stats = getTimeRangeStats(weatherData, targetDateStr, nlu.timeRange, nlu.specificTimeRange);
     const maxTemp = stats.maxTemp;
     const minTemp = stats.minTemp;
     const rainProb = stats.maxRainProb;
     const rainAmount = stats.totalRainMm;
     const windSpeed = stats.avgWind;
-    const isGarmiQuery = nlu.intent === 'temperature' || /garmi|ગરમી|ગરીમી|bafaro|તાપમાન|temp|heat|hot/i.test(question);
-    const isRainQuery = nlu.intent === 'rain_forecast' || /rain|varsad|વરસાદ|ઝાપટાં|બુંદાબુંદી|बारिश/i.test(question);
-    const isDetailRequested = /detail|report|full|card|dashboard|રિપોર્ટ|વિગત/i.test(question);
 
+    // Gujarati Response Handling
     if (isGujarati) {
       const gujCond = translateConditionToGujarati(stats.condition);
-      const peakTimingGu = rainAnalysis.peakRainTimeWindow ? ` (સૌથી વધુ શક્યતા આશરે ${rainAnalysis.peakRainTimeWindow})` : '';
-
+      const peakTimingGu = rainAnalysis.peakRainTimeWindow ? ` (સૌથી વધુ સંભાવના આશરે ${rainAnalysis.peakRainTimeWindow})` : '';
       const isRelativeQuery = /my\s*location|mara\s*location|mare\s*location|near\s*me|here|uper|per|par|અહીં|અહીંનું|મારી\s*જગ્યા|મેરે\s*પાસ|મેરે\s*શહર/i.test(question);
       const locPrefixGu = isRelativeQuery ? `તમારા હાલના location ${loc} મુજબ ` : `${loc} માં `;
 
-      if (isGarmiQuery) {
-        let garmiLevel = '';
-        if (maxTemp >= 38) {
-          garmiLevel = `ભારે ગરમી અને બફારો અનુભવાશે (તાપમાન ${maxTemp}°C સુધી પહોંચી શકે છે)`;
-        } else if (maxTemp >= 32) {
-          garmiLevel = `મધ્યમ ગરમી રહેશે (તાપમાન ${minTemp}°C થી ${maxTemp}°C ની વચ્ચે રહેશે)`;
-        } else if (maxTemp < 25) {
-          garmiLevel = `ગરમીનું પ્રમાણ ઓછું અને વાતાવરણ ગુલગુલાબી/ઠંડું રહેશે (તાપમાન ${minTemp}°C થી ${maxTemp}°C)`;
+      // 1. Laundry / Drying Clothes Query
+      if (isLaundryQuery) {
+        if (rainProb >= 40) {
+          return `${locPrefixGu}${stats.timePeriodGu} વરસાદની ${rainProb}% સંભાવના અને આકાશ ${gujCond} હોવાથી કપડાં બહાર સુકવવા યોગ્ય નથી 🧺. વરસાદથી કપડાં પલળી શકે છે, તેથી ઘરની અંદર અથવા છત નીચે સુકવવા હિતાવહ છે.`;
         } else {
-          garmiLevel = `ગરમીનું પ્રમાણ સામાન્ય અને અનુકૂળ રહેશે (તાપમાન ${minTemp}°C થી ${maxTemp}°C)`;
+          return `${locPrefixGu}${stats.timePeriodGu} વાતાવરણ મુખ્યત્વે ${gujCond} અને ખુલ્લું રહેશે ☀️. વરસાદની સંભાવના ખૂબ જ ઓછી (${rainProb}%) હોવાથી કપડાં બહાર તડકામાં સુકવવા માટે ઉત્તમ દિવસ છે 🧺!`;
         }
-
-        if (!isDetailRequested) {
-          return `${locPrefixGu}${stats.timePeriodGu} ${garmiLevel} ☀️. મહત્તમ તાપમાન ${maxTemp}°C અને ન્યૂનતમ તાપમાન ${minTemp}°C આસપાસ રહેશે 🌡️. પવનની ઝડપ આશરે ${windSpeed} km/h (ભેજ: ${weatherData.current.humidity}%) રહેશે અને વરસાદની શક્યતા નહિવત (${rainProb}%) છે.\n\n💡 *સલાહ: તડકામાં બહાર નીકળતી વખતે પુષ્કળ પાણી પીવું અને સુતરાઉ કપડાં પહેરવા.*`;
-        }
-
-        return `${locPrefixGu}${stats.timePeriodGu} ${garmiLevel}.
-
-**${loc} – ${stats.labelGu}**
-🌡️ **તાપમાન**: ${minTemp}°C થી ${maxTemp}°C
-🌤️ **આકાશ**: ${gujCond}
-🌧️ **વરસાદ**: નહિવત / વરસાદની ઓછી શક્યતા (${rainProb}%)
-💨 **પવન**: આશરે ${windSpeed} km/h (ભેજ: ${weatherData.current.humidity}%)
-
-— *India Meteorological Department (IMD) / MoES Data*`;
       }
 
+      // 2. Travel / Driving Query
+      if (isTravelQuery) {
+        if (rainProb >= 50) {
+          return `${locPrefixGu}${stats.timePeriodGu} ${rainProb}% વરસાદી સંભાવના (~${rainAmount} mm વરસાદ) અને આશરે ${windSpeed} km/h પવન હોવાથી મુસાફરી કરતી વખતે રસ્તા પર સાવચેતી રાખવી 🚗. વાહન ધીમે ચલાવવું અને હેડલાઇટ ચાલુ રાખવી.`;
+        } else {
+          return `${locPrefixGu}${stats.timePeriodGu} હવામાન ખુશનુમા અને અનુકૂળ રહેશે 🚗. પવન ${windSpeed} km/h અને આકાશ ${gujCond} રહેશે. રસ્તાઓ પર મુસાફરી કરવા માટે ઉત્તમ સમય છે!`;
+        }
+      }
+
+      // 3. Humidity / Mugginess Query
+      if (isHumidityQuery) {
+        const hum = weatherData.current.humidity;
+        const humText = hum >= 70
+          ? `ભેજનું પ્રમાણ ${hum}% જેટલું વધારે હોવાથી બફારો વધુ અનુભવાશે 💧.`
+          : `ભેજનું પ્રમાણ ${hum}% આસપાસ મધ્યમ રહેશે.`;
+        return `${locPrefixGu}${stats.timePeriodGu} ${humText} તાપમાન ${minTemp}°C થી ${maxTemp}°C વચ્ચે રહેશે 🌡️.`;
+      }
+
+      // 4. Wind Query
+      if (isWindQuery) {
+        return `${locPrefixGu}${stats.timePeriodGu} પવનની ઝડપ આશરે ${windSpeed} km/h રહેશે 💨. વાતાવરણ ${gujCond} રહેશે અને તાપમાન ${minTemp}°C થી ${maxTemp}°C આસપાસ રહેશે.`;
+      }
+
+      // 5. Cold / Winter Query
+      if (isColdQuery) {
+        if (minTemp <= 18) {
+          return `${locPrefixGu}${stats.timePeriodGu} ન્યૂનતમ તાપમાન ${minTemp}°C સુધી ઘટી શકે છે, જેથી સવારે અને રાત્રે ઠંડીનો અહેસાસ થશે ❄️. હળવા ગરમ કપડાં સાથે રાખવા હિતાવહ છે.`;
+        } else {
+          return `${locPrefixGu}${stats.timePeriodGu} તાપમાન ${minTemp}°C થી ${maxTemp}°C વચ્ચે રહેશે 🌡️. ઠંડીનું પ્રમાણ સામાન્ય રહેશે અને ગરમી-ઠંડીનો સમતોલ અહેસાસ થશે.`;
+        }
+      }
+
+      // 6. Umbrella / Raincoat Query
+      if (isUmbrellaQuery) {
+        if (rainProb >= 40) {
+          return `હા, ${locPrefixGu}${stats.timePeriodGu} વરસાદની ${rainProb}% સંભાવના હોવાથી બહાર નીકળતી વખતે સાથે છત્રી અથવા રેઈનકોટ રાખવો જરૂરી છે ☂️.`;
+        } else {
+          return `ના, ${locPrefixGu}${stats.timePeriodGu} વરસાદની સંભાવના ઓછી (${rainProb}%) હોવાથી છત્રી સાથે રાખવાની ખાસ જરૂર નથી 🌤️.`;
+        }
+      }
+
+      // 7. Time Specific Query (Morning / Evening / Night)
+      if (isNightQuery) {
+        return `${locPrefixGu}રાત્રિ દરમિયાન તાપમાન ઘટીને ${minTemp}°C સુધી જઈ શકે છે 🌙. પવન ${windSpeed} km/h અને વરસાદની સંભાવના ${rainProb}% છે.`;
+      }
+      if (isMorningQuery) {
+        return `${locPrefixGu}સવારના સમયે તાપમાન આશરે ${minTemp + 2}°C રહેશે 🌅. વાતાવરણ ${gujCond} અને ખુશનુમા રહેશે.`;
+      }
+      if (isEveningQuery) {
+        return `${locPrefixGu}સાંજનું વાતાવરણ મુખ્યત્વે ${gujCond} રહેશે 🌆. તાપમાન આશરે ${maxTemp - 2}°C અને વરસાદની સંભાવના ${rainProb}%${peakTimingGu} રહેશે.`;
+      }
+
+      // 8. Garmi / Temperature Focus
+      if (isGarmiQuery) {
+        let garmiLevel = maxTemp >= 38
+          ? `ભારે ગરમી અને બફારો અનુભવાશે (તાપમાન ${maxTemp}°C સુધી પહોંચશે)`
+          : maxTemp >= 32
+          ? `મધ્યમ ગરમી રહેશે (તાપમાન ${minTemp}°C થી ${maxTemp}°C ની વચ્ચે)`
+          : `ગરમીનું પ્રમાણ સામાન્ય અને ગુલગુલાબી રહેશે (તાપમાન ${minTemp}°C થી ${maxTemp}°C)`;
+
+        return `${locPrefixGu}${stats.timePeriodGu} ${garmiLevel} ☀️. મહત્તમ તાપમાન ${maxTemp}°C અને ન્યૂનતમ તાપમાન ${minTemp}°C રહેશે 🌡️. પવન ${windSpeed} km/h (ભેજ: ${weatherData.current.humidity}%) રહેશે.\n\n💡 *સલાહ: દિવસ દરમિયાન પુષ્કળ પાણી પીવું અને સુતરાઉ કપડાં પહેરવા.*`;
+      }
+
+      // 9. Rain Focus
       if (isRainQuery) {
         if (rainProb >= 50) {
-          return `હા, ${locPrefixGu}${stats.timePeriodGu} વરસાદી માહોલ રહેશે 🌧️. આશરે ${rainProb}% સંભાવના સાથે હળવાથી મધ્યમ વરસાદ (~${rainAmount} mm) પડવાની શક્યતા છે${peakTimingGu}. બહાર નીકળતી વખતે સાથે છત્રી અથવા રેઈનકોટ રાખવો હિતાવહ છે ☂️.\n\n🌡️ તાપમાન: ${minTemp}°C થી ${maxTemp}°C | 💨 પવન: આશરે ${windSpeed} km/h (ભેજ: ${weatherData.current.humidity}%)`;
+          return `હા, ${locPrefixGu}${stats.timePeriodGu} વરસાદી માહોલ રહેશે 🌧️. આશરે ${rainProb}% સંભાવના સાથે મધ્યમ વરસાદ (~${rainAmount} mm) પડવાની શક્યતા છે${peakTimingGu}. સાથે છત્રી રાખવી ☂️.`;
         } else if (rainProb >= 25) {
           return `હા, ${locPrefixGu}${stats.timePeriodGu} વાદળછાયું વાતાવરણ રહેશે અને હળવા ઝાપટાં (${rainProb}% સંભાવના${peakTimingGu}) પડી શકે છે 🌤️. તાપમાન ${minTemp}°C થી ${maxTemp}°C વચ્ચે રહેશે.`;
         } else {
-          return `${locPrefixGu}${stats.timePeriodGu} વાતાવરણ મુખ્યત્વે સાફ અને ખુલ્લું રહેશે 🌤️. વરસાદની શક્યતા ખૂબ જ ઓછી (${rainProb}%) છે. તાપમાન ${minTemp}°C થી ${maxTemp}°C વચ્ચે રહેશે 🌡️.`;
+          return `${locPrefixGu}${stats.timePeriodGu} વાતાવરણ ખુલ્લું અને સાફ રહેશે 🌤️. વરસાદની શક્યતા ખૂબ જ ઓછી (${rainProb}%) છે. તાપમાન ${minTemp}°C થી ${maxTemp}°C વચ્ચે રહેશે 🌡️.`;
         }
       }
 
-      // General query response
-      if (!isDetailRequested) {
-        let generalSummary = `${locPrefixGu}${stats.timePeriodGu} વાતાવરણ મુખ્યત્વે ${gujCond} અને સાફ રહેશે 🌤️. હાલમાં તાપમાન ${minTemp}°C થી ${maxTemp}°C ની વચ્ચે રહેશે અને પવનની ઝડપ આશરે ${windSpeed} km/h (ભેજ: ${weatherData.current.humidity}%) રહેશે 💨. IMD મુજબ આજે હળવા વરસાદની ઓછી સંભાવના છે.`;
-        if (rainProb >= 40) {
-          generalSummary += ` છૂટાછવાયા વરસાદની ${rainProb}% સંભાવના છે 🌧️.`;
-        } else {
-          generalSummary += ` વરસાદની શક્યતા ઓછી (${rainProb}%) છે.`;
-        }
-        return generalSummary;
-      }
+      // 10. General Weather Query
+      let generalSummary = `${locPrefixGu}${stats.timePeriodGu} હવામાન મુખ્યત્વે ${gujCond} રહેશે 🌤️. તાપમાન ${minTemp}°C થી ${maxTemp}°C વચ્ચે અને પવનની ઝડપ ${windSpeed} km/h (ભેજ: ${weatherData.current.humidity}%) રહેશે.`;
+      if (rainProb >= 40) generalSummary += ` છૂટાછવાયા વરસાદની ${rainProb}% સંભાવના છે 🌧️.`;
+      else generalSummary += ` વરસાદની સંભાવના ઓછી (${rainProb}%) છે.`;
 
-      return `${loc} માં ${stats.timePeriodGu} વાતાવરણ મુખ્યત્વે ${gujCond} રહેશે.
-
-**${loc} – ${stats.labelGu}**
-🌡️ **તાપમાન**: ${minTemp}°C થી ${maxTemp}°C
-🌤️ **આકાશ**: ${gujCond}
-🌧️ **વરસાદ**: ${rainProb >= 30 ? `શક્ય (${rainProb}%)` : `ઓછી શક્યતા (${rainProb}%)`}
-💨 **પવન**: આશરે ${windSpeed} km/h (ભેજ: ${weatherData.current.humidity}%)
-
-— *India Meteorological Department (IMD) / MoES Data*`;
+      return generalSummary;
     }
 
-    if (isMarathi) {
-      if (isGarmiQuery) {
-        return `${loc} मध्ये ${stats.timePeriodHi || 'आज'} तापमान ${minTemp}°C ते ${maxTemp}°C दरम्यान राहील ☀️. हवामान प्रामुख्याने उष्ण व अनुकूल राहील 🌡️. पावसाची शक्यता खूप कमी (${rainProb}%) आहे.\n\n💡 *सल्ला: मुबलक पाणी प्या आणि हलके सुती कपडे वापरा.*`;
-      }
-      if (isRainQuery) {
-        if (rainProb >= 50) {
-          return `होय, ${loc} मध्ये ${stats.timePeriodHi || 'आज'} पावसाचे वातावरण राहील 🌧️. सुमारे ${rainProb}% शक्‍यतेसह हलका ते मध्यम पाऊस (~${rainAmount} mm) पडू शकतो. सोबत छत्री ठेवा ☂️.\n\n🌡️ तापमान: ${minTemp}°C ते ${maxTemp}°C | 💨 वारा: ~${windSpeed} km/h`;
-        } else {
-          return `${loc} मध्ये ${stats.timePeriodHi || 'आज'} पावसाची शक्यता कमी (${rainProb}%) आहे 🌤️. हवामान छान राहील. तापमान ${minTemp}°C ते ${maxTemp}°C राहील 🌡️.`;
-        }
-      }
-      return `${loc} मध्ये ${stats.timePeriodHi || 'आज'} हवामान प्रामुख्याने स्वच्छ आणि छान राहील 🌤️. तापमान ${minTemp}°C ते ${maxTemp}°C दरम्यान राहील 🌡️ आणि वारा सुमारे ${windSpeed} km/h राहील 💨.`;
-    }
-
+    // Hindi Response Handling
     if (isHindi) {
       const hiCond = translateConditionToHindi(stats.condition);
+      if (isLaundryQuery) {
+        return rainProb >= 40
+          ? `${loc} में ${stats.timePeriodHi} बारिश की ${rainProb}% संभावना के कारण कपड़े बाहर सुखाना सही नहीं होगा 🧺।`
+          : `${loc} में ${stats.timePeriodHi} मौसम साफ (${hiCond}) रहेगा। कपड़े सुखाने के लिए अच्छा दिन है 🧺!`;
+      }
+      if (isTravelQuery) {
+        return rainProb >= 50
+          ? `${loc} में ${stats.timePeriodHi} ${rainProb}% बारिश की संभावना के कारण यात्रा करते समय सावधानी बरतें 🚗।`
+          : `${loc} में ${stats.timePeriodHi} मौसम यात्रा के लिए बहुत सुहावना और अनुकूल रहेगा 🚗।`;
+      }
       if (isGarmiQuery) {
-        return `${loc} में ${stats.timePeriodHi} तापमान ${minTemp}°C से ${maxTemp}°C के बीच रहेगा ☀️। मौसम मुख्यतः अनुकूल और मध्यम गर्मी वाला रहेगा 🌡️। बारिश की संभावना कम (${rainProb}%) है।\n\n💡 *सलाह: पर्याप्त पानी पीते रहें।*`;
+        return `${loc} में ${stats.timePeriodHi} तापमान ${minTemp}°C से ${maxTemp}°C के बीच रहेगा ☀️। मौसम मुख्यतः अनुकूल और मध्यम गर्मी वाला रहेगा 🌡️।`;
       }
       if (isRainQuery) {
-        if (rainProb >= 50) {
-          return `हां, ${loc} में ${stats.timePeriodHi} बारिश का मौसम रहेगा 🌧️। लगभग ${rainProb}% संभावना के साथ हल्की से मध्यम बारिश (~${rainAmount} mm) हो सकती है। छाता साथ रखें ☂️।\n\n🌡️ तापमान: ${minTemp}°C से ${maxTemp}°C | 💨 हवा: ~${windSpeed} km/h`;
-        } else {
-          return `${loc} में ${stats.timePeriodHi} बारिश की संभावना कम (${rainProb}%) है 🌤️। मौसम साफ और सुहावना रहेगा। तापमान ${minTemp}°C से ${maxTemp}°C रहेगा 🌡️।`;
-        }
+        return rainProb >= 50
+          ? `हां, ${loc} में ${stats.timePeriodHi} बारिश का मौसम रहेगा 🌧️। लगभग ${rainProb}% संभावना के साथ बारिश (~${rainAmount} mm) हो सकती है। छाता साथ रखें ☂️।`
+          : `${loc} में ${stats.timePeriodHi} बारिश की संभावना कम (${rainProb}%) है 🌤️। मौसम साफ रहेगा।`;
       }
-      return `${loc} में ${stats.timePeriodHi} मौसम मुख्यतः ${hiCond} और साफ रहेगा 🌤️। तापमान ${minTemp}°C से ${maxTemp}°C के बीच रहेगा 🌡️ और हवा लगभग ${windSpeed} km/h रहेगी 💨।`;
+      return `${loc} में ${stats.timePeriodHi} मौसम मुख्यतः ${hiCond} रहेगा 🌤️। तापमान ${minTemp}°C से ${maxTemp}°C के बीच और हवा ~${windSpeed} km/h रहेगी 💨।`;
     }
 
+    // Marathi Response Handling
+    if (isMarathi) {
+      if (isTravelQuery) {
+        return `${loc} मध्ये ${stats.timePeriodHi || 'आज'} प्रवासासाठी हवामान छान राहील 🚗. तापमान ${minTemp}°C ते ${maxTemp}°C दरम्यान राहील.`;
+      }
+      if (isRainQuery) {
+        return rainProb >= 50
+          ? `होय, ${loc} मध्ये पावसाचे वातावरण राहील 🌧️ (शक्यत: ${rainProb}%). छत्री सोबत ठेवा ☂️.`
+          : `${loc} मध्ये पावसाची शक्यता कमी (${rainProb}%) आहे 🌤️.`;
+      }
+      return `${loc} मध्ये हवामान प्रामुख्याने स्वच्छ राहील 🌤️. तापमान ${minTemp}°C ते ${maxTemp}°C राहील 🌡️.`;
+    }
+
+    // Punjabi Response Handling
     const isPunjabi = nlu.language === 'pa' || /[\u0A00-\u0A7F]/.test(question);
     if (isPunjabi) {
-      if (isGarmiQuery) {
-        return `${loc} ਵਿੱਚ ਤਾਪਮਾਨ ${minTemp}°C ਤੋਂ ${maxTemp}°C ਦੇ ਵਿਚਕਾਰ ਰਹੇਗਾ ☀️। ਮੌਸਮ ਗਰਮ ਅਤੇ ਅਨੁਕੂਲ ਰਹੇਗਾ 🌡️। ਮੀਂਹ ਦੀ ਸੰਭਾਵਨਾ ਬਹੁਤ ਘੱਟ (${rainProb}%) ਹੈ।\n\n💡 *ਸਲਾਹ: ਕਾਫ਼ੀ ਪਾਣੀ ਪੀਓ ਅਤੇ ਧੁੱਪ ਤੋਂ ਬਚੋ।*`;
-      }
       if (isRainQuery) {
-        if (rainProb >= 50) {
-          return `ਹਾਂ, ${loc} ਵਿੱਚ ਮੀਂਹ ਦਾ ਮੌਸਮ ਰਹੇਗਾ 🌧️। ਲਗਭਗ ${rainProb}% ਸੰਭਾਵਨਾ ਨਾਲ ਹਲਕਾ ਤੋਂ ਮੱਧਮ ਮੀਂਹ (~${rainAmount} mm) ਪੈ ਸਕਦਾ ਹੈ। ਨਾਲ ਛਤਰੀ ਰੱਖੋ ☂️।\n\n🌡️ ਤਾਪਮਾਨ: ${minTemp}°C ਤੋਂ ${maxTemp}°C | 💨 ਹਵਾ: ~${windSpeed} km/h`;
-        } else {
-          return `${loc} ਵਿੱਚ ਮੀਂਹ ਦੀ ਸੰਭਾਵਨਾ ਘੱਟ (${rainProb}%) ਹੈ 🌤️। ਮੌਸਮ ਸਾਫ਼ ਰਹੇਗਾ। ਤਾਪਮਾਨ ${minTemp}°C ਤੋਂ ${maxTemp}°C ਵਿਚਕਾਰ ਰਹੇਗਾ 🌡️।`;
-        }
+        return rainProb >= 50
+          ? `ਹਾਂ, ${loc} ਵਿੱਚ ਮੀਂਹ ਪੈਣ ਦੀ ${rainProb}% ਸੰਭਾਵਨਾ ਹੈ 🌧️। ਨਾਲ ਛਤਰੀ ਰੱਖੋ ☂️।`
+          : `${loc} ਵਿੱਚ ਮੀਂਹ ਦੀ ਸੰਭਾਵਨਾ ਘੱਟ (${rainProb}%) ਹੈ 🌤️। ਤਾਪਮਾਨ ${minTemp}°C ਤੋਂ ${maxTemp}°C ਰਹੇਗਾ।`;
       }
-      return `${loc} ਵਿੱਚ ਮੌਸਮ ਮੁੱਖ ਤੌਰ 'ਤੇ ਸਾਫ਼ ਅਤੇ ਖੁੱਲ੍ਹਾ ਰਹੇਗਾ 🌤️। ਤਾਪਮਾਨ ${minTemp}°C ਤੋਂ ${maxTemp}°C ਦੇ ਵਿਚਕਾਰ ਰਹੇਗਾ 🌡️ ਅਤੇ ਹਵਾ ਲਗਭਗ ${windSpeed} km/h ਰਹੇਗੀ 💨।`;
+      return `${loc} ਵਿੱਚ ਮੌਸਮ ਮੁੱਖ ਤੌਰ 'ਤੇ ਸਾਫ਼ ਰਹੇਗਾ 🌤️। ਤਾਪਮਾਨ ${minTemp}°C ਤੋਂ ${maxTemp}°C ਦੇ ਵਿਚਕਾਰ ਰਹੇਗਾ 🌡️।`;
     }
 
-    const isTamil = nlu.language === 'ta' || /[\u0B80-\u0BFF]/.test(question);
-    if (isTamil) {
-      if (isRainQuery && rainProb >= 50) {
-        return `${loc} இல் இன்று மழை பெய்ய வாய்ப்புள்ளது 🌧️ (வாய்ப்பு: ${rainProb}%). வெப்பநிலை ${minTemp}°C முதல் ${maxTemp}°C வரை இருக்கும் 🌡️. குடை எடுத்துச் செல்லவும் ☂️.`;
-      }
-      return `${loc} இல் இன்று வானிலை முக்கியமாக தெளிவாக இருக்கும் 🌤️. வெப்பநிலை ${minTemp}°C முதல் ${maxTemp}°C வரை இருக்கும் 🌡️. மழை வாய்ப்பு ${rainProb}% 🌧️.`;
+    // English Response Handling
+    if (isLaundryQuery) {
+      return rainProb >= 40
+        ? `In ${loc}, drying clothes outdoors is not recommended today due to a ${rainProb}% rain probability 🧺. Consider drying indoors.`
+        : `Weather in ${loc} will be mostly ${stats.condition} with low rain risk (${rainProb}%). It is a great day for drying clothes outdoors 🧺!`;
     }
-
-    const isTelugu = nlu.language === 'te' || /[\u0C00-\u0C7F]/.test(question);
-    if (isTelugu) {
-      if (isRainQuery && rainProb >= 50) {
-        return `${loc} లో ఈరోజు వర్షం పడే అవకాశం ఉంది 🌧️ (అవకాశం: ${rainProb}%). ఉష్ణోగ్రత ${minTemp}°C నుండి ${maxTemp}°C వరకు ఉంటుంది 🌡️. గొడుగు ఉంచుకోండి ☂️.`;
-      }
-      return `${loc} లో ఈరోజు వాతావరణం ప్రధానంగా ప్రశాంతంగా ఉంటుంది 🌤️. ఉష్ණోగ్రత ${minTemp}°C నుండి ${maxTemp}°C వరకు ఉంటుంది 🌡️. వర్షం సంభావ్యత ${rainProb}% 🌧️.`;
+    if (isTravelQuery) {
+      return rainProb >= 50
+        ? `Driving conditions in ${loc} might require caution today due to ${rainProb}% rain probability and ${windSpeed} km/h winds 🚗.`
+        : `Travel conditions in ${loc} will be pleasant and smooth today 🚗. Winds around ${windSpeed} km/h and temperatures between ${minTemp}°C and ${maxTemp}°C.`;
     }
-
-    const isBengali = nlu.language === 'bn' || /[\u0980-\u09FF]/.test(question);
-    if (isBengali) {
-      if (isRainQuery && rainProb >= 50) {
-        return `${loc}-এ আজ বৃষ্টির সম্ভাবনা রয়েছে 🌧️ (সম্ভাবনা: ${rainProb}%)। তাপমাত্রা ${minTemp}°C থেকে ${maxTemp}°C এর মধ্যে থাকবে 🌡️। ছাতা সাথে রাখুন ☂️।`;
-      }
-      return `${loc}-এ আজ আবহাওয়া প্রধানত পরিষ্কার থাকবে 🌤️। তাপমাত্রা ${minTemp}°C থেকে ${maxTemp}°C এর মধ্যে থাকবে 🌡️। বৃষ্টির সম্ভাবনা ${rainProb}% 🌧️।`;
-    }
-
-    // English response
     if (isGarmiQuery) {
       return `In ${loc}, ${stats.timePeriodEn} temperatures will range between ${minTemp}°C and ${maxTemp}°C ☀️ with comfortable heat levels. Humidity is around ${weatherData.current.humidity}% 🌡️.`;
     }
     if (isRainQuery) {
-      if (rainProb >= 50) {
-        return `Yes, there is a ${rainProb}% chance of light to moderate rain (~${rainAmount} mm) in ${loc} ${stats.timePeriodEn} 🌧️. Carrying an umbrella is recommended ☂️.\n\n🌡️ Temperature: ${minTemp}°C to ${maxTemp}°C | 💨 Wind: ~${windSpeed} km/h`;
-      } else {
-        return `Rain is unlikely in ${loc} ${stats.timePeriodEn} (only ${rainProb}% chance) 🌤️. Expect clear skies with temperatures between ${minTemp}°C and ${maxTemp}°C 🌡️.`;
-      }
+      return rainProb >= 50
+        ? `Yes, there is a ${rainProb}% chance of rain (~${rainAmount} mm) in ${loc} ${stats.timePeriodEn} 🌧️. Carrying an umbrella is recommended ☂️.`
+        : `Rain is unlikely in ${loc} ${stats.timePeriodEn} (only ${rainProb}% chance) 🌤️. Expect clear skies with temperatures between ${minTemp}°C and ${maxTemp}°C 🌡️.`;
     }
     return `Weather in ${loc} ${stats.timePeriodEn} will be mostly ${stats.condition} 🌤️. Temperature will range from ${minTemp}°C to ${maxTemp}°C with wind speeds around ${windSpeed} km/h 💨.`;
   }
