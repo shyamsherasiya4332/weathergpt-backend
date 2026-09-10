@@ -525,6 +525,83 @@ Generates agricultural weather advisories and **Krishi Index (0–100)** for far
 
 ---
 
+### 16. Weather Copilot API (`POST /api/copilot/plan`) ⭐
+AI planner for outdoor activities (wedding, sports, travel, farming, outdoor events, daily activities) with confidence score, best time window, and multi-language guidance.
+
+**Request Body:**
+```json
+{
+  "activityType": "wedding",
+  "location": "Rajkot",
+  "language": "gu"
+}
+```
+
+**Response (`200 OK`):**
+```json
+{
+  "success": true,
+  "copilot": {
+    "activityType": "wedding",
+    "location": "Rajkot",
+    "recommendation": "Favorable",
+    "bestTimeWindow": "09:00 - 12:00",
+    "confidence": 94,
+    "reasoning": "વાતાવરણ ચોખ્ખું અને આઉટડોર પ્રસંગ માટે ઉત્તમ છે.",
+    "weatherFactors": {
+      "temperature": 31,
+      "feelsLike": 34,
+      "rainProbability": 15,
+      "rainAmountMm": 0,
+      "windSpeed": 18,
+      "humidity": 55,
+      "uvIndex": 7,
+      "condition": "Sunny"
+    },
+    "guidance": [
+      "આઉટડોર ફોટોગ્રાફી અને પ્રસંગ માટે સાનુકૂળ સમય."
+    ]
+  }
+}
+```
+
+---
+
+### 17. Smart Notification AI API (`POST /api/notifications/schedule`, `POST /api/notifications/evaluate`) ⭐
+Allows users to schedule weather trigger rules (`rain`, `heat`, `flood`, `wind`) and evaluates live triggers with Make.com webhook dispatching.
+
+**Schedule Rule (`POST /api/notifications/schedule`):**
+```json
+{
+  "location": "Rajkot",
+  "triggerType": "rain",
+  "threshold": 60,
+  "frequency": "realtime",
+  "channel": "make"
+}
+```
+
+---
+
+### 18. Accessibility Service API (`POST /api/accessibility/format`, `GET /api/accessibility/offline-phrases`) ⭐
+Provides voice-first screen reader scripts, high-contrast, large-text UI metadata, and offline emergency phrasebooks in Gujarati, Hindi, and English.
+
+**Format Accessibility Request (`POST /api/accessibility/format`):**
+```json
+{
+  "location": "Rajkot",
+  "language": "gu",
+  "voiceFirst": true,
+  "highContrast": true,
+  "largeText": true
+}
+```
+
+**Offline Emergency Phrases (`GET /api/accessibility/offline-phrases?category=cyclone`):**
+Returns pre-packaged safety guidance phrases for offline PWA caching in Gujarati, Hindi, and English.
+
+---
+
 ## Installation & Running API Server
 
 ```bash
