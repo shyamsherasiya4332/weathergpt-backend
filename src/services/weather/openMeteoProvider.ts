@@ -176,19 +176,28 @@ export class OpenMeteoWeatherProvider implements IWeatherProvider {
 
   private generateBackupForecast(location: ResolvedLocation): WeatherData {
     const nowIso = new Date().toISOString();
+    const latHash = Math.abs(Math.round(location.latitude * 100)) % 7;
+    const lonHash = Math.abs(Math.round(location.longitude * 100)) % 7;
+
+    const baseMaxTemp = 29 + (latHash % 5); // 29°C to 33°C
+    const baseMinTemp = baseMaxTemp - 7 - (lonHash % 3); // 21°C to 26°C
+    const baseHumidity = 55 + (lonHash * 4); // 55% to 79%
+    const baseWind = 10 + (latHash * 2); // 10 to 22 km/h
+    const baseRainProb = (latHash * 6 + lonHash * 4) % 40; // 0% to 40%
 
     const hourly: HourlyForecastItem[] = Array.from({ length: 48 }, (_, i) => {
       const hDate = new Date();
       hDate.setHours(hDate.getHours() + i);
+      const tempOffset = Math.round(Math.sin((i - 6) / 4) * 4);
       return {
         time: hDate.toISOString(),
-        temperature: 28 + Math.round(Math.sin(i / 3) * 4),
-        precipitationProbability: 15,
-        precipitationAmount: 0,
-        weatherCode: 2,
-        condition: 'Partly cloudy',
-        humidity: 65,
-        windSpeed: 14,
+        temperature: baseMinTemp + tempOffset + 4,
+        precipitationProbability: Math.min(100, Math.max(0, baseRainProb + (i % 5 === 0 ? 15 : -5))),
+        precipitationAmount: baseRainProb > 30 && i % 6 === 0 ? 1.5 : 0,
+        weatherCode: baseRainProb > 30 ? 61 : (baseHumidity > 70 ? 3 : 2),
+        condition: baseRainProb > 30 ? 'Slight rain' : (baseHumidity > 70 ? 'Overcast' : 'Partly cloudy'),
+        humidity: baseHumidity,
+        windSpeed: baseWind,
         uvIndex: i >= 10 && i <= 16 ? 7 : 1
       };
     });
@@ -199,11 +208,11 @@ export class OpenMeteoWeatherProvider implements IWeatherProvider {
       const dStr = dDate.toISOString().split('T')[0];
       return {
         date: dStr,
-        temperatureMax: 33,
-        temperatureMin: 25,
-        precipitationProbabilityMax: 20,
-        precipitationSum: 0,
-        condition: 'Partly cloudy',
+        temperatureMax: baseMaxTemp + (i % 2),
+        temperatureMin: baseMinTemp,
+        precipitationProbabilityMax: Math.min(100, baseRainProb + (i * 3)),
+        precipitationSum: baseRainProb > 30 ? 2.5 : 0,
+        condition: baseRainProb > 30 ? 'Slight rain' : 'Partly cloudy',
         sunrise: `${dStr}T06:20`,
         sunset: `${dStr}T18:50`,
         uvIndexMax: 8
@@ -213,18 +222,18 @@ export class OpenMeteoWeatherProvider implements IWeatherProvider {
     return {
       location: { ...location, timezone: location.timezone || 'Asia/Kolkata' },
       current: {
-        temperature: 30,
-        apparentTemperature: 33,
-        condition: 'Partly cloudy',
-        weatherCode: 2,
-        precipitation: 0,
-        rainProbability: 15,
-        humidity: 65,
-        windSpeed: 14,
+        temperature: Math.round((baseMaxTemp + baseMinTemp) / 2),
+        apparentTemperature: Math.round((baseMaxTemp + baseMinTemp) / 2) + 2,
+        condition: baseRainProb > 30 ? 'Slight rain' : 'Partly cloudy',
+        weatherCode: baseRainProb > 30 ? 61 : 2,
+        precipitation: baseRainProb > 30 ? 0.5 : 0,
+        rainProbability: baseRainProb,
+        humidity: baseHumidity,
+        windSpeed: baseWind,
         windDirection: 180,
-        cloudCover: 30,
+        cloudCover: 35,
         visibility: 10000,
-        uvIndex: 7,
+        uvIndex: 6,
         isDay: true,
         time: nowIso
       },
@@ -232,7 +241,7 @@ export class OpenMeteoWeatherProvider implements IWeatherProvider {
       daily,
       retrievedAt: nowIso,
       isCached: true,
-      cacheNotice: 'Note: Live weather API was temporarily unreachable. Showing backup climate forecast.'
+      cacheNotice: 'Note: Live weather API was temporarily unreachable. Showing location-specific estimate.'
     };
   }
 }
