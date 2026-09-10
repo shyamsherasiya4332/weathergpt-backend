@@ -176,7 +176,93 @@ export interface EmergencyGuidance {
   helplines: Array<{ name: string; number: string }>;
 }
 
-// ========== Enhanced Ask Response (v2) ==========
+// ========== V3 Upgrade Module Types ==========
+
+export interface CommunityReport {
+  id?: string;
+  location: string;
+  latitude: number;
+  longitude: number;
+  condition: 'heavy_rain' | 'light_rain' | 'sunny' | 'clear' | 'thunderstorm' | 'flooding' | 'fog' | 'extreme_heat' | string;
+  intensity?: 'low' | 'moderate' | 'high' | string;
+  photo?: string;
+  language?: string;
+  notes?: string;
+  timestamp?: string;
+}
+
+export interface CommunityConfidence {
+  totalReports: number;
+  confidenceScore: number;       // 0-100%
+  clusterSummary: string;
+  recentReports: CommunityReport[];
+}
+
+export interface RouteWeatherInput {
+  origin: string;
+  destination: string;
+}
+
+export interface RouteRainZone {
+  locationName: string;
+  latitude: number;
+  longitude: number;
+  rainProbability: number;
+  severity: 'moderate' | 'heavy' | 'extreme';
+}
+
+export interface RouteWeatherResult {
+  origin: string;
+  destination: string;
+  totalDistanceKm: number;
+  estimatedDurationHours: number;
+  originWeather: {
+    locationName: string;
+    temperature: number;
+    condition: string;
+    rainProbability: number;
+  };
+  midRouteWeather: {
+    locationName: string;
+    temperature: number;
+    condition: string;
+    rainProbability: number;
+  };
+  destinationWeather: {
+    locationName: string;
+    temperature: number;
+    condition: string;
+    rainProbability: number;
+  };
+  rainZones: RouteRainZone[];
+  safeTravelWindow: {
+    recommendedDeparture: string;
+    reason: string;
+    safetyScore: number;
+  };
+  etaWeatherSummary: string;
+}
+
+export interface ExplainWhyObject {
+  title: string;
+  summary: string;
+  factors: string[];
+}
+
+export interface ShareCardInput {
+  location: string;
+  question?: string;
+}
+
+export interface ShareCardResponse {
+  title: string;
+  text: string;
+  formattedMessage: string;
+  shareUrl: string;
+  tags: string[];
+}
+
+// ========== Enhanced Ask Response (v3) ==========
 
 export interface AskResponseSuccess {
   success: true;
@@ -192,7 +278,7 @@ export interface AskResponseSuccess {
     tempMin: number;
     rainProbability: number;
   }>;
-  // New SIH Fields
+  // SIH Fields
   riskScores?: WeatherRiskScores;
   advisories?: {
     general: string[];
@@ -208,11 +294,20 @@ export interface AskResponseSuccess {
   suggested_followups?: string[];
   climate_fact?: string;
   ui_widgets?: Array<{ type: string; title: string; data: any }>;
-  // Production Upgrades
+  // Production Upgrades (V2 + V3)
   airQuality?: AirQualityData;
   forecastConfidence?: ForecastConfidence;
+  confidence?: {
+    forecast: number;
+    reason: string;
+  };
   conversationContext?: ConversationContextObject;
   disasterAlerts?: DisasterAlert[];
+  disaster?: DisasterAlert[];
+  explainWhy?: ExplainWhyObject;
+  communityReports?: CommunityConfidence;
+  routeSuggestion?: RouteWeatherResult;
+  shareCard?: ShareCardResponse;
   generated_at: string;
 }
 

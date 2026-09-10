@@ -16,6 +16,9 @@ import { moesService } from '../services/moes/moesService.js';
 import { airQualityService } from '../services/airQuality/airQualityService.js';
 import { disasterService } from '../services/disaster/disasterService.js';
 import { confidenceService } from '../services/confidence/confidenceService.js';
+import { communityService } from '../services/community/communityService.js';
+import { explainableService } from '../services/explain/explainableService.js';
+import { shareService } from '../services/share/shareService.js';
 import { ApiErrorResponse, AskResponseSuccess } from '../types/api.js';
 import { logger } from '../utils/logger.js';
 
@@ -378,6 +381,10 @@ export class WeatherController {
       const airQuality = await airQualityService.getAirQuality(weatherData.location.latitude, weatherData.location.longitude, nlu.language);
       const disasterAlerts = disasterService.generateDisasterAlerts(weatherData, rainAnalysis, riskScores);
       const forecastConfidence = confidenceService.calculateConfidence(weatherData, 0);
+      const explainWhy = explainableService.generateExplanation(weatherData, weatherData.location.name);
+      const communityReports = communityService.calculateCommunityConfidence(weatherData.location.name, weatherData.location.latitude, weatherData.location.longitude);
+      const shareCard = shareService.generateShareCard(weatherData.location.name, weatherData, question);
+
       const conversationContextObject = {
         id: convContext.id,
         resolvedLocation: weatherData.location,
@@ -437,11 +444,19 @@ export class WeatherController {
         suggested_followups: moesBulletin.suggestedFollowups,
         climate_fact: moesBulletin.climateFact,
         ui_widgets: moesBulletin.uiWidgets,
-        // Production Upgrades
+        // Production Upgrades (V2 + V3)
         airQuality,
         forecastConfidence,
+        confidence: {
+          forecast: forecastConfidence.overallScore,
+          reason: forecastConfidence.description
+        },
         conversationContext: conversationContextObject,
         disasterAlerts,
+        disaster: disasterAlerts,
+        explainWhy,
+        communityReports,
+        shareCard,
         generated_at: new Date().toISOString()
       };
 

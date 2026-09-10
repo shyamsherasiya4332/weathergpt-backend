@@ -360,7 +360,104 @@ Provides map layer tile configurations and color legends for weather map visuali
 The main query endpoint `/api/ask` automatically includes:
 - **`airQuality`**: AQI, PM2.5, PM10, CO, NO2, O3, SO2 values, AQI category, and persona-specific health advice.
 - **`forecastConfidence`**: Confidence score (0-100), rating (`HIGH` | `MODERATE` | `LOW`), horizon in days, and factor breakdowns.
+- **`confidence`**: `{ forecast: 92, reason: "High quality hourly forecast available." }`
+- **`explainWhy`**: `{ title: "...", summary: "...", factors: [...] }` empirical explanation object based strictly on live weather API metrics.
+- **`communityReports`**: Crowdsourced weather reports & community confidence score.
+- **`shareCard`**: Pre-formatted WhatsApp & social media card payload.
 - **`conversationContext`**: Resolved location, target date (`today`, `tomorrow`, etc.), recognized intent, and active language.
+
+---
+
+### 11. Hyperlocal Community Weather Reports API (`POST /api/community/report` & `GET /api/community/reports`)
+Allows crowdsourced user weather reporting with location clustering and Community Confidence Score generation.
+
+**Submit Report (`POST /api/community/report`):**
+```json
+{
+  "location": "Rajkot",
+  "latitude": 22.30,
+  "longitude": 70.79,
+  "condition": "heavy_rain",
+  "intensity": "high",
+  "photo": "optional_data_url",
+  "language": "gu"
+}
+```
+
+**Get Reports & Confidence (`GET /api/community/reports?location=Rajkot`):**
+```json
+{
+  "success": true,
+  "reports": [...],
+  "communityConfidence": {
+    "totalReports": 3,
+    "confidenceScore": 95,
+    "clusterSummary": "3 crowdsourced report(s) in this area. 3 user(s) confirm rainfall activity."
+  }
+}
+```
+
+---
+
+### 12. Route Weather Intelligence API (`POST /api/route/weather`)
+Calculates distance, mid-route weather, rain zones, safe travel window, and ETA weather summary along a driving route between origin and destination.
+
+**Request Body:**
+```json
+{
+  "origin": "Rajkot",
+  "destination": "Ahmedabad"
+}
+```
+
+**Response (`200 OK`):**
+```json
+{
+  "success": true,
+  "routeWeather": {
+    "origin": "Rajkot",
+    "destination": "Ahmedabad",
+    "totalDistanceKm": 215,
+    "estimatedDurationHours": 3.3,
+    "originWeather": { "temperature": 31, "condition": "Sunny", "rainProbability": 10 },
+    "midRouteWeather": { "temperature": 30, "condition": "Sunny", "rainProbability": 15 },
+    "destinationWeather": { "temperature": 33, "condition": "Partly Cloudy", "rainProbability": 10 },
+    "rainZones": [],
+    "safeTravelWindow": {
+      "recommendedDeparture": "Immediate (Within next 1 hour)",
+      "reason": "Favorable travel conditions with low precipitation risk along the route.",
+      "safetyScore": 90
+    },
+    "etaWeatherSummary": "Driving route from Rajkot to Ahmedabad is ~215 km (approx 3.3 hrs)..."
+  }
+}
+```
+
+---
+
+### 13. Shareable Social Weather Card API (`POST /api/share/card`)
+Generates lightweight JSON payloads pre-formatted for WhatsApp, X (Twitter), and social sharing.
+
+**Request Body:**
+```json
+{
+  "location": "Rajkot"
+}
+```
+
+**Response (`200 OK`):**
+```json
+{
+  "success": true,
+  "shareCard": {
+    "title": "☀️ Weather Forecast for Rajkot - WeatherGPT",
+    "text": "Rajkot: 31°C (Sunny), Rain Risk: 10%. Powered by WeatherGPT (MoES).",
+    "formattedMessage": "🌦️ *WeatherGPT Live Report - Rajkot*\n\n🌡️ *Temperature*: 31°C...",
+    "shareUrl": "https://weathergpt-backend-46or.onrender.com/api/ask?location=Rajkot",
+    "tags": ["#WeatherGPT", "#RajkotWeather", "#MoES", "#SIH2024"]
+  }
+}
+```
 
 ---
 
@@ -373,7 +470,7 @@ npm install
 # 2. Build TypeScript project
 npm run build
 
-# 3. Run automated test suite (51 tests passing across 7 test suites)
+# 3. Run automated test suite (56 tests passing across 8 test suites)
 npm test
 
 # 4. Start production REST API server

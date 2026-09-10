@@ -4,6 +4,9 @@ import { healthRoutes } from './healthRoutes.js';
 import { makeRoutes } from './makeRoutes.js';
 import { voiceRoutes } from './voiceRoutes.js';
 import { weatherRoutes } from './weatherRoutes.js';
+import communityRoutes from './communityRoutes.js';
+import routeRoutes from './routeRoutes.js';
+import shareRoutes from './shareRoutes.js';
 import { locationController, reverseGeocodeSchema } from '../controllers/locationController.js';
 import { disasterController, disasterQuerySchema } from '../controllers/disasterController.js';
 import { comparisonController, compareRequestSchema } from '../controllers/comparisonController.js';
@@ -17,6 +20,9 @@ apiRouter.use('/', weatherRoutes);
 apiRouter.use('/', alertRoutes);
 apiRouter.use('/voice', voiceRoutes);
 apiRouter.use('/make', makeRoutes);
+apiRouter.use('/community', communityRoutes);
+apiRouter.use('/route', routeRoutes);
+apiRouter.use('/share', shareRoutes);
 
 // Reverse Geocoding Endpoint
 apiRouter.post('/location/reverse-geocode', validateRequest(reverseGeocodeSchema), (req, res, next) => {
