@@ -461,6 +461,70 @@ Generates lightweight JSON payloads pre-formatted for WhatsApp, X (Twitter), and
 
 ---
 
+### 14. Weather Lens AI Camera API (`POST /api/weather/lens`) ⭐
+Allows users to take a photo of the sky/clouds using their device camera, upload the image with an optional question, and receive visual cloud classification cross-verified with live Open-Meteo API data.
+
+**Request Body:**
+```json
+{
+  "image": "data:image/jpeg;base64,/9j/4AAQSkZJRg...",
+  "question": "આ વાદળો જોઈને કહો કાલે વરસાદ પડશે?",
+  "location": "Rajkot",
+  "language": "gu"
+}
+```
+
+**Response (`200 OK`):**
+```json
+{
+  "success": true,
+  "weatherLens": {
+    "detectedCloudType": "Cumulonimbus",
+    "skyCondition": "Dark Cumulonimbus Rain/Thunderstorm Clouds",
+    "estimatedCloudCoverPercentage": 85,
+    "liveRainProbability": 78,
+    "aiConfidence": 93,
+    "apiVerificationStatus": "VERIFIED_WITH_OPEN_METEO",
+    "answer": "📸 કેમેરા ફોટો વિશ્લેષણ મુજબ, આકાશમાં Dark Cumulonimbus Rain/Thunderstorm Clouds દર્શાય છે. live satellite અને IMD ડેટા મુજબ રાજકોટ માં વરસાદની શક્યતા 78% છે.",
+    "advisory": "⚠️ ભારે વાદળો અને વરસાદની શક્યતા હોવાથી બહાર જતી વખતે છત્રી અથવા રેઈનકોટ સાથે રાખવો."
+  }
+}
+```
+
+---
+
+### 15. Smart Crop / Kisan Intelligence API (`GET /api/agri/advisory`) ⭐
+Generates agricultural weather advisories and **Krishi Index (0–100)** for farmers in **Gujarati (`gu`)**, **Hindi (`hi`)**, and **English (`en`)**.
+
+**Query Parameters:**
+`location=Rajkot` & `cropType=cotton` & `language=gu`
+
+**Response (`200 OK`):**
+```json
+{
+  "success": true,
+  "agri": {
+    "locationName": "Rajkot",
+    "krishiIndex": 88,
+    "cropRiskLevel": "LOW",
+    "irrigationAdvice": "સામાન્ય હળવી સિંચાઈ કરી શકાય છે. વાતાવરણ અનુકૂળ છે.",
+    "pesticideSuitability": "SUITABLE",
+    "pesticideReason": "Low wind speed and clear conditions ideal for spraying.",
+    "soilMoistureEstimate": "મધ્યમ (સામાન્ય)",
+    "nextRainWindow": "આગામી 24 કલાકમાં વરસાદની શક્યતા નહિવત છે.",
+    "language": "gu",
+    "cropAdviceList": [
+      "પાક: cotton",
+      "સામાન્ય હળવી સિંચાઈ કરી શકાય છે. વાતાવરણ અનુકૂળ છે.",
+      "જંતુનાશક છંટકાવ: SUITABLE (Low wind speed and clear conditions ideal for spraying.)",
+      "ખેતરમાં પાણીના નિકાલની યોગ્ય વ્યવસ્થા જાળવી રાખવી."
+    ]
+  }
+}
+```
+
+---
+
 ## Installation & Running API Server
 
 ```bash
@@ -470,7 +534,7 @@ npm install
 # 2. Build TypeScript project
 npm run build
 
-# 3. Run automated test suite (56 tests passing across 8 test suites)
+# 3. Run automated test suite (60 tests passing across 9 test suites)
 npm test
 
 # 4. Start production REST API server

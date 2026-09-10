@@ -31,7 +31,15 @@ class ShareService {
     const encodedLoc = encodeURIComponent(locationName);
     const shareUrl = `https://weathergpt-backend-46or.onrender.com/api/ask?location=${encodedLoc}`;
 
+    const riskColor = rainProb >= 70 ? '#EF4444' : rainProb >= 40 ? '#F59E0B' : '#10B981';
+
     return {
+      city: locationName,
+      temperature: temp,
+      rainProbability: rainProb,
+      weatherIcon: emoji,
+      riskColor,
+      branding: 'WeatherGPT (Ministry of Earth Sciences)',
       title,
       text,
       formattedMessage,

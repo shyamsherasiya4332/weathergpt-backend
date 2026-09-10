@@ -255,6 +255,12 @@ export interface ShareCardInput {
 }
 
 export interface ShareCardResponse {
+  city: string;
+  temperature: number;
+  rainProbability: number;
+  weatherIcon: string;
+  riskColor: string;
+  branding: string;
   title: string;
   text: string;
   formattedMessage: string;
@@ -262,7 +268,40 @@ export interface ShareCardResponse {
   tags: string[];
 }
 
-// ========== Enhanced Ask Response (v3) ==========
+export interface WeatherLensInput {
+  image?: string;                 // Base64 or image URL
+  question?: string;              // User camera query, e.g. "આ વાદળો જોઈને કહો કાલે વરસાદ પડશે?"
+  location?: LocationInput | string;
+  latitude?: number;
+  longitude?: number;
+  language?: string;
+}
+
+export interface WeatherLensResult {
+  detectedCloudType: 'Cumulonimbus' | 'Stratus' | 'Cirrus' | 'Cumulus' | 'Nimbostratus' | 'Clear Sky' | string;
+  skyCondition: string;
+  estimatedCloudCoverPercentage: number;
+  liveRainProbability: number;
+  aiConfidence: number;           // 0-100%
+  apiVerificationStatus: 'VERIFIED_WITH_OPEN_METEO';
+  answer: string;
+  advisory: string;
+}
+
+export interface AgriAdvisoryResult {
+  locationName: string;
+  krishiIndex: number;            // 0-100 farming score
+  cropRiskLevel: 'LOW' | 'MODERATE' | 'HIGH' | 'CRITICAL';
+  irrigationAdvice: string;
+  pesticideSuitability: 'SUITABLE' | 'UNSUITABLE' | 'CAUTION';
+  pesticideReason: string;
+  soilMoistureEstimate: string;
+  nextRainWindow: string;
+  language: string;
+  cropAdviceList: string[];
+}
+
+// ========== Enhanced Ask Response (v3.1) ==========
 
 export interface AskResponseSuccess {
   success: true;
@@ -294,7 +333,7 @@ export interface AskResponseSuccess {
   suggested_followups?: string[];
   climate_fact?: string;
   ui_widgets?: Array<{ type: string; title: string; data: any }>;
-  // Production Upgrades (V2 + V3)
+  // Production Upgrades (V2 + V3 + V3.1)
   airQuality?: AirQualityData;
   forecastConfidence?: ForecastConfidence;
   confidence?: {
@@ -308,6 +347,8 @@ export interface AskResponseSuccess {
   communityReports?: CommunityConfidence;
   routeSuggestion?: RouteWeatherResult;
   shareCard?: ShareCardResponse;
+  agri?: AgriAdvisoryResult;
+  weatherLens?: WeatherLensResult;
   generated_at: string;
 }
 

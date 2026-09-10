@@ -19,6 +19,8 @@ import { confidenceService } from '../services/confidence/confidenceService.js';
 import { communityService } from '../services/community/communityService.js';
 import { explainableService } from '../services/explain/explainableService.js';
 import { shareService } from '../services/share/shareService.js';
+import { agriService } from '../services/agri/agriService.js';
+import { weatherLensService } from '../services/lens/weatherLensService.js';
 import { ApiErrorResponse, AskResponseSuccess } from '../types/api.js';
 import { logger } from '../utils/logger.js';
 
@@ -384,6 +386,14 @@ export class WeatherController {
       const explainWhy = explainableService.generateExplanation(weatherData, weatherData.location.name);
       const communityReports = communityService.calculateCommunityConfidence(weatherData.location.name, weatherData.location.latitude, weatherData.location.longitude);
       const shareCard = shareService.generateShareCard(weatherData.location.name, weatherData, question);
+      const agri = await agriService.generateAgriAdvisory(weatherData.location.name, weatherData.location.latitude, weatherData.location.longitude, undefined, nlu.language);
+      const weatherLens = await weatherLensService.analyzeSkyImage({
+        question,
+        latitude: weatherData.location.latitude,
+        longitude: weatherData.location.longitude,
+        location: weatherData.location,
+        language: nlu.language
+      });
 
       const conversationContextObject = {
         id: convContext.id,
@@ -444,7 +454,7 @@ export class WeatherController {
         suggested_followups: moesBulletin.suggestedFollowups,
         climate_fact: moesBulletin.climateFact,
         ui_widgets: moesBulletin.uiWidgets,
-        // Production Upgrades (V2 + V3)
+        // Production Upgrades (V2 + V3 + V3.1)
         airQuality,
         forecastConfidence,
         confidence: {
@@ -457,6 +467,8 @@ export class WeatherController {
         explainWhy,
         communityReports,
         shareCard,
+        agri,
+        weatherLens,
         generated_at: new Date().toISOString()
       };
 
