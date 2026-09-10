@@ -535,14 +535,15 @@ Follow all rules of WeatherGPT system prompt.
           userPromptPayload
         );
         if (answer && answer.trim().length > 0) {
-          return answer.trim();
+          return this.appendFollowupSuggestion(answer.trim(), nlu.language, question);
         }
       } catch (err) {
         logger.warn('LLM answer generation failed, using rule-based fallback:', err);
       }
     }
 
-    return this.generateFallbackAnswer(question, nlu, weatherData, rainAnalysis, targetDateStr);
+    const fallbackAns = this.generateFallbackAnswer(question, nlu, weatherData, rainAnalysis, targetDateStr);
+    return this.appendFollowupSuggestion(fallbackAns, nlu.language, question);
   }
 
   private generateFallbackAnswer(
@@ -817,6 +818,45 @@ Follow all rules of WeatherGPT system prompt.
     }
 
     return `I am WeatherGPT, an AI Weather Assistant. 🌤️ I can only assist with weather, temperature, rain forecast, and climate-related queries. Please ask me about the weather in any city or village! 🙏`;
+  }
+
+  private appendFollowupSuggestion(rawAnswer: string, language: string, question: string): string {
+    if (/તમારે|તમારે\s*વધારે|જો\s*તમારે|यदि\s*आप|अगर\s*आप|if\s*you\s*would\s*like|puchhi\s*sako|જાણવું\s*હોય|ਜੇਕਰ\s*ਤੁਸੀਂ|तुम्हाला\s*आज/i.test(rawAnswer)) {
+      return rawAnswer;
+    }
+
+    const isGu = language === 'gu' || /[\u0A80-\u0AFF]/.test(question);
+    const isHi = language === 'hi' || /[\u0900-\u097F]/.test(question);
+    const isHinglish = language === 'hinglish';
+    const isMr = language === 'mr';
+    const isPa = language === 'pa' || /[\u0A00-\u0A7F]/.test(question);
+    const isTa = language === 'ta' || /[\u0B80-\u0BFF]/.test(question);
+    const isTe = language === 'te' || /[\u0C00-\u0C7F]/.test(question);
+    const isBn = language === 'bn' || /[\u0980-\u09FF]/.test(question);
+
+    let offerSentence = '';
+
+    if (isGu) {
+      offerSentence = '\n\nતમારે આજે સાંજે કેવું વાતાવરણ રહેશે અથવા કાલે વરસાદ પડશે કે કેમ તે વધારે માહિતી જાણવી હોય તો મને પૂછી શકો છો! 😊';
+    } else if (isHinglish) {
+      offerSentence = '\n\nAgar aapko aaj shaam ke mausam ya kal ke rain/temperature ke baare mein aur jaanna hai, toh aap mujhse puch sakte hain! 😊';
+    } else if (isHi) {
+      offerSentence = '\n\nयदि आप आज शाम के मौसम या कल के बारिश/तापमान के बारे में और जानकारी चाहते हैं, तो मुझसे पूछ सकते हैं! 😊';
+    } else if (isMr) {
+      offerSentence = '\n\nतुम्हाला आज संध्याकाळचे हवामान किंवा उद्याच्या पावसाची अधिक माहिती हवी असेल तर मला नक्की विचारा! 😊';
+    } else if (isPa) {
+      offerSentence = '\n\nਜੇਕਰ ਤੁਸੀਂ ਅੱਜ ਸ਼ਾਮ ਦੇ ਮੌਸਮ ਜਾਂ ਕੱਲ੍ਹ ਦੇ ਮੀਂਹ/ਤਾਪਮਾਨ ਬਾਰੇ ਹੋਰ ਜਾਣਕਾਰੀ ਚਾਹੁੰਦੇ ਹੋ, ਤਾਂ ਮੈਨੂੰ ਪੁੱਛ ਸਕਦੇ ਹੋ! 😊';
+    } else if (isTa) {
+      offerSentence = '\n\nஇன்று மாலை வானிலை அல்லது நாளைய மழை பற்றிய கூடுதல் தகவலுக்கு என்னிடம் கேட்கலாம்! 😊';
+    } else if (isTe) {
+      offerSentence = '\n\nఈరోజు సాయంత్రం వాతావరణం లేదా రేపటి వర్షం గూర్చి మరింత సమాచారం కావాలంటే నన్ను అడగవచ్చు! 😊';
+    } else if (isBn) {
+      offerSentence = '\n\nআপনি যদি আজ সন্ধ্যার আবহাওয়া বা আগামীকালের পূর্বাভাস সম্পর্কে আরও জানতে চান, তবে আমাকে জিজ্ঞাসা করতে পারেন! 😊';
+    } else {
+      offerSentence = '\n\nIf you would like more information, such as the evening weather forecast or tomorrow\'s rain/temperature, feel free to ask me! 😊';
+    }
+
+    return rawAnswer.trim() + offerSentence;
   }
 }
 
