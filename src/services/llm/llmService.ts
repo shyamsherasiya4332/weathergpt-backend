@@ -1,6 +1,6 @@
 import { WEATHER_GPT_SYSTEM_PROMPT } from '../../prompts/weatherPrompt.js';
 import { LocationInput } from '../../types/api.js';
-import { ParsedNLU } from '../../types/nlu.js';
+import { LocationEntity, ParsedNLU } from '../../types/nlu.js';
 import { RainAnalysisResult, WeatherData } from '../../types/weather.js';
 import { getCurrentTimeInTimezone, getFormattedDateInTimezone, getRelativeDateString } from '../../utils/dateUtils.js';
 import { logger } from '../../utils/logger.js';
@@ -294,15 +294,14 @@ export function getTimeRangeStats(
 }
 
 export class LLMService {
-  async parseNLU(question: string, locationContext?: LocationInput): Promise<ParsedNLU> {
-    const qLower = question.toLowerCase();
-
-    const isGujaratiQuery =
-      /[\u0A80-\u0AFF]/.test(question) ||
-      /\b(?:kale|aaje|varsad|padse|hase|nai|ke|sanje|savare|bapore|ma|mein|paramdivas|paramdivase|peramdivas)\b/i.test(question);
+  async parseNLU(question: string, locationContext?: LocationEntity): Promise<ParsedNLU> {
+    const detectedLangInfo = languageService.detect(question);
+    const language = detectedLangInfo.code;
+    const fullLangName = detectedLangInfo.name;
 
     const prompt = `
 User Query: "${question}"
+Detected Language: ${fullLangName} (${language})
 Location Context: ${locationContext ? JSON.stringify(locationContext) : 'None'}
 
 Extract JSON:
@@ -314,7 +313,7 @@ Extract JSON:
   "specificDateStr": "YYYY-MM-DD" | null,
   "timeRange": "full_day" | "morning" | "afternoon" | "evening" | "night" | "specific_hours" | null,
   "specificTimeRange": { "startHour": number, "endHour": number } | null,
-  "language": "${isGujaratiQuery ? 'gu' : 'auto'}"
+  "language": "${language}"
 }
 `;
 
@@ -333,7 +332,7 @@ Extract JSON:
           specificDateStr: parsed.specificDateStr || undefined,
           timeRange: parsed.timeRange || 'full_day',
           specificTimeRange: parsed.specificTimeRange || undefined,
-          language: isGujaratiQuery ? 'gu' : (parsed.language || 'en'),
+          language: language,
           confidence: 0.95
         };
       } catch (error) {
@@ -667,6 +666,45 @@ Follow all rules of WeatherGPT system prompt.
       return `${loc} में ${stats.timePeriodHi} मौसम मुख्यतः ${hiCond} और साफ रहेगा 🌤️। तापमान ${minTemp}°C से ${maxTemp}°C के बीच रहेगा 🌡️ और हवा लगभग ${windSpeed} km/h रहेगी 💨।`;
     }
 
+    const isPunjabi = nlu.language === 'pa' || /[\u0A00-\u0A7F]/.test(question);
+    if (isPunjabi) {
+      if (isGarmiQuery) {
+        return `${loc} ਵਿੱਚ ਤਾਪਮਾਨ ${minTemp}°C ਤੋਂ ${maxTemp}°C ਦੇ ਵਿਚਕਾਰ ਰਹੇਗਾ ☀️। ਮੌਸਮ ਗਰਮ ਅਤੇ ਅਨੁਕੂਲ ਰਹੇਗਾ 🌡️। ਮੀਂਹ ਦੀ ਸੰਭਾਵਨਾ ਬਹੁਤ ਘੱਟ (${rainProb}%) ਹੈ।\n\n💡 *ਸਲਾਹ: ਕਾਫ਼ੀ ਪਾਣੀ ਪੀਓ ਅਤੇ ਧੁੱਪ ਤੋਂ ਬਚੋ।*`;
+      }
+      if (isRainQuery) {
+        if (rainProb >= 50) {
+          return `ਹਾਂ, ${loc} ਵਿੱਚ ਮੀਂਹ ਦਾ ਮੌਸਮ ਰਹੇਗਾ 🌧️। ਲਗਭਗ ${rainProb}% ਸੰਭਾਵਨਾ ਨਾਲ ਹਲਕਾ ਤੋਂ ਮੱਧਮ ਮੀਂਹ (~${rainAmount} mm) ਪੈ ਸਕਦਾ ਹੈ। ਨਾਲ ਛਤਰੀ ਰੱਖੋ ☂️।\n\n🌡️ ਤਾਪਮਾਨ: ${minTemp}°C ਤੋਂ ${maxTemp}°C | 💨 ਹਵਾ: ~${windSpeed} km/h`;
+        } else {
+          return `${loc} ਵਿੱਚ ਮੀਂਹ ਦੀ ਸੰਭਾਵਨਾ ਘੱਟ (${rainProb}%) ਹੈ 🌤️। ਮੌਸਮ ਸਾਫ਼ ਰਹੇਗਾ। ਤਾਪਮਾਨ ${minTemp}°C ਤੋਂ ${maxTemp}°C ਵਿਚਕਾਰ ਰਹੇਗਾ 🌡️।`;
+        }
+      }
+      return `${loc} ਵਿੱਚ ਮੌਸਮ ਮੁੱਖ ਤੌਰ 'ਤੇ ਸਾਫ਼ ਅਤੇ ਖੁੱਲ੍ਹਾ ਰਹੇਗਾ 🌤️। ਤਾਪਮਾਨ ${minTemp}°C ਤੋਂ ${maxTemp}°C ਦੇ ਵਿਚਕਾਰ ਰਹੇਗਾ 🌡️ ਅਤੇ ਹਵਾ ਲਗਭਗ ${windSpeed} km/h ਰਹੇਗੀ 💨।`;
+    }
+
+    const isTamil = nlu.language === 'ta' || /[\u0B80-\u0BFF]/.test(question);
+    if (isTamil) {
+      if (isRainQuery && rainProb >= 50) {
+        return `${loc} இல் இன்று மழை பெய்ய வாய்ப்புள்ளது 🌧️ (வாய்ப்பு: ${rainProb}%). வெப்பநிலை ${minTemp}°C முதல் ${maxTemp}°C வரை இருக்கும் 🌡️. குடை எடுத்துச் செல்லவும் ☂️.`;
+      }
+      return `${loc} இல் இன்று வானிலை முக்கியமாக தெளிவாக இருக்கும் 🌤️. வெப்பநிலை ${minTemp}°C முதல் ${maxTemp}°C வரை இருக்கும் 🌡️. மழை வாய்ப்பு ${rainProb}% 🌧️.`;
+    }
+
+    const isTelugu = nlu.language === 'te' || /[\u0C00-\u0C7F]/.test(question);
+    if (isTelugu) {
+      if (isRainQuery && rainProb >= 50) {
+        return `${loc} లో ఈరోజు వర్షం పడే అవకాశం ఉంది 🌧️ (అవకాశం: ${rainProb}%). ఉష్ణోగ్రత ${minTemp}°C నుండి ${maxTemp}°C వరకు ఉంటుంది 🌡️. గొడుగు ఉంచుకోండి ☂️.`;
+      }
+      return `${loc} లో ఈరోజు వాతావరణం ప్రధానంగా ప్రశాంతంగా ఉంటుంది 🌤️. ఉష్ණోగ్రత ${minTemp}°C నుండి ${maxTemp}°C వరకు ఉంటుంది 🌡️. వర్షం సంభావ్యత ${rainProb}% 🌧️.`;
+    }
+
+    const isBengali = nlu.language === 'bn' || /[\u0980-\u09FF]/.test(question);
+    if (isBengali) {
+      if (isRainQuery && rainProb >= 50) {
+        return `${loc}-এ আজ বৃষ্টির সম্ভাবনা রয়েছে 🌧️ (সম্ভাবনা: ${rainProb}%)। তাপমাত্রা ${minTemp}°C থেকে ${maxTemp}°C এর মধ্যে থাকবে 🌡️। ছাতা সাথে রাখুন ☂️।`;
+      }
+      return `${loc}-এ আজ আবহাওয়া প্রধানত পরিষ্কার থাকবে 🌤️। তাপমাত্রা ${minTemp}°C থেকে ${maxTemp}°C এর মধ্যে থাকবে 🌡️। বৃষ্টির সম্ভাবনা ${rainProb}% 🌧️।`;
+    }
+
     // English response
     if (isGarmiQuery) {
       return `In ${loc}, ${stats.timePeriodEn} temperatures will range between ${minTemp}°C and ${maxTemp}°C ☀️ with comfortable heat levels. Humidity is around ${weatherData.current.humidity}% 🌡️.`;
@@ -721,11 +759,17 @@ Follow all rules of WeatherGPT system prompt.
       'हॅलो! 🌤️ WeatherGPT मध्ये आपले स्वागत आहे. आज आपण कोणत्या शहराचे हवामान पाहू इच्छिता?'
     ];
 
-    const isGu = language === 'gu' || /[\u0A80-\u0AFF]/.test(question) || /kem\s*cho|namaste|halo|ram\s*ram|su\s*prabhat/i.test(question);
-    const isHi = !isGu && (language === 'hi' || language === 'hinglish' || /namaste|kaisa\s*ho/i.test(question));
-    const isMr = !isGu && !isHi && (language === 'mr' || /नमस्कार/i.test(question));
+    const paGreetings = [
+      'ਸਤਿ ਸ਼੍ਰੀ ਅਕਾਲ! 🙏 ਮੈਂ WeatherGPT ਹਾਂ। ਮੈਂ ਭਾਰਤ ਦੇ ਕਿਸੇ ਵੀ ਸ਼ਹਿਰ ਜਾਂ ਪਿੰਡ ਦਾ ਲਾਈਵ ਮੌਸਮ ਦੱਸ ਸਕਦਾ ਹਾਂ। ਤੁਸੀਂ ਕਿਸ ਜਗ੍ਹਾ ਦਾ ਮੌਸਮ ਜਾਣਨਾ ਚਾਹੁੰਦੇ ਹੋ? 🌤️',
+      'ਜੀ ਆਇਆਂ ਨੂੰ! 🌤️ WeatherGPT ਵਿੱਚ ਤੁਹਾਡਾ ਸੁਆਗਤ ਹੈ। ਅੱਜ ਤੁਸੀਂ ਕਿਸ ਸ਼ਹਿਰ ਦਾ ਮੌਸਮ ਜਾਂ ਤਾਪਮਾਨ ਦੇਖਣਾ ਚਾਹੁੰਦੇ ਹੋ?'
+    ];
 
-    const pool = isGu ? gujGreetings : isHi ? hiGreetings : isMr ? mrGreetings : enGreetings;
+    const isPa = language === 'pa' || /[\u0A00-\u0A7F]/.test(question) || /sat\s*sri\s*akal|satsriakal/i.test(question);
+    const isGu = !isPa && (language === 'gu' || /[\u0A80-\u0AFF]/.test(question) || /kem\s*cho|namaste|halo|ram\s*ram|su\s*prabhat/i.test(question));
+    const isHi = !isPa && !isGu && (language === 'hi' || language === 'hinglish' || /namaste|kaisa\s*ho/i.test(question));
+    const isMr = !isPa && !isGu && !isHi && (language === 'mr' || /नमस्कार/i.test(question));
+
+    const pool = isPa ? paGreetings : isGu ? gujGreetings : isHi ? hiGreetings : isMr ? mrGreetings : enGreetings;
     const randomIndex = Math.floor(Math.random() * pool.length);
     return pool[randomIndex];
   }
@@ -746,10 +790,15 @@ Follow all rules of WeatherGPT system prompt.
       }
     }
 
+    const isPa = language === 'pa' || /[\u0A00-\u0A7F]/.test(question);
     const isGu = language === 'gu' || /[\u0A80-\u0AFF]/.test(question);
     const isHi = language === 'hi' || /[\u0900-\u097F]/.test(question);
     const isHinglish = language === 'hinglish';
     const isMr = language === 'mr';
+
+    if (isPa) {
+      return `ਮੈਂ WeatherGPT ਇੱਕ ਏਆਈ ਵੈਦਰ ਅਸਿਸਟੈਂਟ ਹਾਂ। 🌤️ ਮੈਂ ਸਿਰਫ਼ ਮੌਸਮ, ਤਾਪਮਾਨ, ਮੀਂਹ ਅਤੇ ਜਲਵਾਯੂ ਨਾਲ ਸਬੰਧਤ ਸਵਾਲਾਂ ਦੇ ਜਵਾਬ ਦੇ ਸਕਦਾ ਹਾਂ। ਕਿਰਪਾ ਕਰਕੇ ਮੈਨੂੰ ਕਿਸੇ ਵੀ ਸ਼ਹਿਰ ਜਾਂ ਪਿੰਡ ਦੇ ਮੌਸਮ ਬਾਰੇ ਪੁੱਛੋ! 🙏`;
+    }
 
     if (isGu) {
       return `હું WeatherGPT એક એઆઈ વેધર આસિસ્ટન્ટ છું. 🌤️ હું ફક્ત હવામાન, તાપમાન, વરસાદ અને વાતાવરણ સંબંધિત પ્રશ્નોના જવાબ આપી શકું છું. કૃપા કરીને મને ભારતના કોઈપણ શહેર કે ગામના હવામાન વિશે પૂછો! 🙏`;

@@ -360,5 +360,18 @@ describe('POST /api/ask - Natural Language Weather Queries', () => {
     expect(res.body.success).toBe(true);
     expect(res.body.answer).toMatch(/WeatherGPT|હવામાન/i);
   });
+
+  it('13. Should handle Punjabi weather query and respond in Punjabi language', async () => {
+    jest.spyOn(openMeteoProvider, 'getWeatherData').mockResolvedValueOnce(mockWeatherData);
+
+    const res = await request(app)
+      .post('/api/ask')
+      .send({ question: 'ਅੱਜ ਮੋਗਾ ਵਿੱਚ ਮੌਸਮ ਕਿਹੋ ਜਿਹਾ ਹੈ?' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.language).toBe('pa');
+    expect(res.body.answer).toMatch(/ਮੌਸਮ|ਤਾਪਮਾਨ|ਸਾਫ਼/i);
+  });
 });
 
