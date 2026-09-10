@@ -12,7 +12,7 @@ export interface LanguageInfo {
 export class LanguageService {
   private readonly devanagariKeywords: Record<string, string[]> = {
     hi: ['hai', 'aur', 'main', 'ho', 'ki', 'ka', 'ko', 'mein', 'ne', 'par', 'है', 'और', 'मैं', 'हो', 'की', 'का', 'को', 'में', 'ने', 'पर'],
-    mr: ['ahe', 'ani', 'mi', 'aahe', 'आहे', 'आणि', 'मी', 'माझे', 'तुझे', 'होते'],
+    mr: ['ahe', 'ani', 'mi', 'aahe', 'आहे', 'आणि', 'मी', 'माझे', 'तुझे', 'होते', 'कसे', 'हवामान', 'मध्ये', 'आज', 'कसा', 'कशी', 'झाले', 'काय', 'नाही', 'पुणे', 'मुंबई', 'kase', 'hawaman', 'ahe', 'madhye', 'aaj', 'kasa', 'kashi'],
     sa: ['api', 'ca', 'iti', 'tat', 'अस्ति', 'च', 'अपि', 'इति', 'तत्'],
     kok: ['asa', 'ani', 'hav', 'आसा', 'आणि', 'हांव'],
     mai: ['chhi', 'rahal', 'kaha', 'अछि', 'रहल', 'कहल'],

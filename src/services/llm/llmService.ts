@@ -4,6 +4,7 @@ import { ParsedNLU } from '../../types/nlu.js';
 import { RainAnalysisResult, WeatherData } from '../../types/weather.js';
 import { getCurrentTimeInTimezone, getFormattedDateInTimezone, getRelativeDateString } from '../../utils/dateUtils.js';
 import { logger } from '../../utils/logger.js';
+import { languageService } from '../language/languageService.js';
 import { openAIClient } from './openaiClient.js';
 
 function formatGujaratiDate(isoDateStr: string, timezone: string = 'Asia/Kolkata'): string {
@@ -383,23 +384,46 @@ Extract JSON:
       specificTimeRange = { startHour: 21, endHour: 23 };
     }
 
-    const isGujaratiQuery =
-      /[\u0A80-\u0AFF]/.test(question) ||
-      /\b(?:kale|aaje|varsad|padse|hase|nai|ke|sanje|savare|bapore|ma|mein|garmi|thandi)\b/i.test(question);
-    const language = isGujaratiQuery ? 'gu' : (/[a-zA-Z]/.test(question) ? 'en' : 'hi');
+    const detectedLangInfo = languageService.detect(question);
+    const language = detectedLangInfo.code;
 
     let locationName: string | undefined = undefined;
 
-    const knownCities = [
-      'Statue of Unity', 'Somnath Temple', 'Somnath', 'Gir National Park', 'Gir', 'Sabarmati Riverfront', 'Sabarmati',
-      'Rajkot Gujarat', 'Rajkot', 'Morbi Gujarat', 'Morbi', 'Ahmedabad', 'Surat', 'Vadodara', 'Mumbai', 'Delhi',
-      'Bangalore', 'Chennai', 'Kolkata', 'Jaipur', 'Pune', 'Hyderabad', 'Junagadh', 'Jamnagar', 'Bhavnagar', 'Anand', 'Nadiad', 'Bhuj', 'Kutch', 'Dwarka'
-    ];
+    const knownCitiesMap: Record<string, string> = {
+      'Statue of Unity': 'Statue of Unity', 'Somnath Temple': 'Somnath Temple', 'Somnath': 'Somnath',
+      'Gir National Park': 'Gir National Park', 'Gir': 'Gir', 'Sabarmati Riverfront': 'Sabarmati Riverfront',
+      'Sabarmati': 'Sabarmati', 'Rajkot Gujarat': 'Rajkot', 'Rajkot': 'Rajkot', 'Morbi Gujarat': 'Morbi',
+      'Morbi': 'Morbi', 'Ahmedabad': 'Ahmedabad', 'Surat': 'Surat', 'Vadodara': 'Vadodara',
+      'Mumbai': 'Mumbai', 'Delhi': 'Delhi', 'Bangalore': 'Bangalore', 'Chennai': 'Chennai',
+      'Kolkata': 'Kolkata', 'Jaipur': 'Jaipur', 'Pune': 'Pune', 'Hyderabad': 'Hyderabad',
+      'Junagadh': 'Junagadh', 'Jamnagar': 'Jamnagar', 'Bhavnagar': 'Bhavnagar', 'Anand': 'Anand',
+      'Nadiad': 'Nadiad', 'Bhuj': 'Bhuj', 'Kutch': 'Kutch', 'Dwarka': 'Dwarka',
+      'मुंबईमध्ये': 'Mumbai', 'मुंबईत': 'Mumbai', 'मुंबई': 'Mumbai', 'मुम्बई': 'Mumbai',
+      'पुण्यात': 'Pune', 'पुण्यामध्ये': 'Pune', 'पुणे': 'Pune',
+      'नागपूर': 'Nagpur', 'नागपुर': 'Nagpur', 'नाशिक': 'Nashik',
+      'અહમદાબાદ': 'Ahmedabad', 'અમદાવાદ': 'Ahmedabad', 'અમદાવાદમાં': 'Ahmedabad',
+      'રાજકોટ': 'Rajkot', 'રાજકોટમાં': 'Rajkot', 'મોરબી': 'Morbi', 'મોરબીમાં': 'Morbi',
+      'બોટાદ': 'Botad', 'બોટાદમાં': 'Botad', 'સુરત': 'Surat', 'સુરતમાં': 'Surat',
+      'વડોદરા': 'Vadodara', 'વડોદરામાં': 'Vadodara', 'ભાવનગર': 'Bhavnagar', 'જામનગર': 'Jamnagar',
+      'જૂનાગઢ': 'Junagadh', 'દિલ્હી': 'Delhi', 'दिल्ली': 'Delhi', 'जोधपुर': 'Jodhpur',
+      'जयपुर': 'Jaipur', 'कोलकाता': 'Kolkata', 'चेन्नई': 'Chennai', 'हैदराबाद': 'Hyderabad'
+    };
 
-    for (const city of knownCities) {
-      if (qLower.includes(city.toLowerCase()) || question.includes(city)) {
-        locationName = city;
+    for (const [key, val] of Object.entries(knownCitiesMap)) {
+      if (question.includes(key) || qLower.includes(key.toLowerCase())) {
+        locationName = val;
         break;
+      }
+    }
+
+    if (!locationName) {
+      const suffixMatch = question.match(/([A-Za-z\u0A80-\u0AFF\u0900-\u097F]{2,30})(?:मध्ये|मधे|त|તમાં|માં|મા|में|से|को)\b/i);
+      if (suffixMatch) {
+        let candidate = suffixMatch[1].trim();
+        candidate = candidate.replace(/^(?:kale|aaje|today|tomorrow|kal|shyam|sanje|savare|morning|evening|night|garmi|thandi|aaj|aata)\s*/i, '').trim();
+        if (candidate && candidate.length >= 2) {
+          locationName = candidate;
+        }
       }
     }
 
@@ -428,7 +452,7 @@ Extract JSON:
     if (locationName) {
       locationName = locationName
         .replace(/\b(?:gujarat|maharashtra|rajasthan|punjab|haryana|delhi|karnataka|kerala|tamilnadu|india|bharat)\b/gi, '')
-        .replace(/\b(?:varsad|rain|weather|forecast|hoga|hogi|padse|hase|ke|nai|kya|aaje|kale|today|tomorrow|shyam|sanje|savare|temp|taapman|garmi|thandi|bafaro)\b/gi, '')
+        .replace(/\b(?:varsad|rain|weather|forecast|hoga|hogi|padse|hase|ke|nai|kya|aaje|kale|today|tomorrow|shyam|sanje|savare|temp|taapman|garmi|thandi|bafaro|kase|aahe|hawaman)\b/gi, '')
         .trim();
       if (locationName.length === 0) {
         locationName = undefined;
