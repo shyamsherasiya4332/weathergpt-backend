@@ -75,6 +75,20 @@ export class WeatherController {
         return;
       }
 
+      // Check Off-Topic / Unknown Intent (e.g. "what is my name", "who are you", "tell me a joke", "who is PM")
+      if (nlu.intent === 'unknown') {
+        logger.info(`Handling off-topic unknown intent for query: "${question}"`);
+        const offTopicAns = await llmService.generateOffTopicResponse(question, nlu.language);
+        res.json({
+          success: true,
+          answer: offTopicAns,
+          language: nlu.language,
+          conversationId: convContext?.id,
+          generated_at: new Date().toISOString()
+        });
+        return;
+      }
+
       // Check Affirmative Follow-up (e.g. "yes", "ha", "haan", "હા", "हाँ", "ok", "sure", "bato")
       const isAffirmative = /^(?:yes|ha|haan|haa|haanji|હા|हाँ|ok|okay|sure|yeah|yep|yup|hange|true|bato|kaho|aapo|ha\s+bato|ha\s+aapo|baporo|sanj)$/i.test(question.trim());
       if ((nlu.intent === 'follow_up_time_breakdown' || isAffirmative) && convContext?.lastWeatherData) {

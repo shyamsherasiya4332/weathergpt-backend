@@ -339,5 +339,26 @@ describe('POST /api/ask - Natural Language Weather Queries', () => {
     expect(res.body.location.latitude).toBe(22.8173);
     expect(res.body.location.longitude).toBe(70.8377);
   });
+
+  // Test 11: Off-topic / non-weather query handling
+  it('11. Should gracefully handle off-topic non-weather queries like "what is my name"', async () => {
+    const res = await request(app)
+      .post('/api/ask')
+      .send({ question: 'what is my name' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.answer).toMatch(/WeatherGPT|weather/i);
+  });
+
+  it('12. Should handle Gujarati off-topic query "મારું નામ શું છે?"', async () => {
+    const res = await request(app)
+      .post('/api/ask')
+      .send({ question: 'મારું નામ શું છે?' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.answer).toMatch(/WeatherGPT|હવામાન/i);
+  });
 });
 

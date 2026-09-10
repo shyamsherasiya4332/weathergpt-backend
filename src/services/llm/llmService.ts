@@ -462,10 +462,17 @@ Extract JSON:
       }
     }
 
+    const isExplicitOffTopic = /what\s*is\s*my\s*name|maru\s*naa?m|mera\s*naa?m|who\s*am\s*i|my\s*age|maru\s*nam|mera\s*nam|who\s*are\s*you|tamaru\s*naam|aapka\s*naam|who\s*made\s*you|kone\s*banavya|kisine\s*banaya|who\s*created|tell\s*me\s*a?\s*joke|chutkule|joke\s*suno|tell\s*story|kahani|recipe|cook|capital\s*of|prime\s*minister|pm\s*of|president|who\s*is\s*the|calculate|2\s*\+\s*2|math|programming|write\s*a?\s*code|song\s*suno|gana\s*gao|song|movie|cinema/i.test(question);
+    const hasWeatherKeywords = /weather|havaman|vatavaran|mausam|hawa|rain|varsad|barish|garmi|bafaro|thandi|tapman|taapman|temp|temperature|cloud|vadal|badal|sun|tado|dhoop|climate|chhatri|umbrella|storm|toofan|cyclone|flood|pur|wind|pawan|pavan|humidity|uv|degree|ડિગ્રી|ઝાપટાં|ઝાપટું/i.test(question);
+
+    if (isExplicitOffTopic || (intent === 'general_forecast' && !hasWeatherKeywords && !locationName && !/^(?:how|kevu|kaisa|kaha|kya|su|chhe|hai)\b/i.test(question.trim()))) {
+      intent = 'unknown';
+    }
+
     return {
       intent,
       locationName,
-      isLocationNeeded: true,
+      isLocationNeeded: intent !== 'unknown',
       targetDate,
       timeRange,
       specificTimeRange,
@@ -721,6 +728,46 @@ Follow all rules of WeatherGPT system prompt.
     const pool = isGu ? gujGreetings : isHi ? hiGreetings : isMr ? mrGreetings : enGreetings;
     const randomIndex = Math.floor(Math.random() * pool.length);
     return pool[randomIndex];
+  }
+
+  async generateOffTopicResponse(question: string, language: string): Promise<string> {
+    const fullLangName = languageService.getLanguageName(language);
+
+    if (openAIClient.isConfigured()) {
+      try {
+        const prompt = `User sent an off-topic/non-weather question: "${question}". Synthesize a polite, friendly response in ${fullLangName} (${language}) stating that you are WeatherGPT, an AI Weather Assistant created to help with weather, forecast, rain, temperature, and climate queries. Politely inform the user that you can only answer weather-related questions, and invite them to ask about the weather in any city or village. Keep it 1-2 natural sentences with friendly emojis.`;
+        const res = await openAIClient.generateChatCompletion(
+          'You are WeatherGPT, a friendly AI weather assistant for India.',
+          prompt
+        );
+        if (res && res.trim()) return res.trim();
+      } catch (err) {
+        logger.warn('LLM off-topic response generation failed, using fallback:', err);
+      }
+    }
+
+    const isGu = language === 'gu' || /[\u0A80-\u0AFF]/.test(question);
+    const isHi = language === 'hi' || /[\u0900-\u097F]/.test(question);
+    const isHinglish = language === 'hinglish';
+    const isMr = language === 'mr';
+
+    if (isGu) {
+      return `હું WeatherGPT એક એઆઈ વેધર આસિસ્ટન્ટ છું. 🌤️ હું ફક્ત હવામાન, તાપમાન, વરસાદ અને વાતાવરણ સંબંધિત પ્રશ્નોના જવાબ આપી શકું છું. કૃપા કરીને મને ભારતના કોઈપણ શહેર કે ગામના હવામાન વિશે પૂછો! 🙏`;
+    }
+
+    if (isHi) {
+      return `मैं WeatherGPT एक एआई वेदर असिस्टेंट हूँ। 🌤️ मैं केवल मौसम, तापमान, बारिश और जलवायु से जुड़े सवालों के जवाब दे सकता हूँ। कृपया मुझसे किसी भी स्थान के मौसम के बारे में पूछें! 🙏`;
+    }
+
+    if (isHinglish) {
+      return `Main WeatherGPT ek AI Weather Assistant hoon. 🌤️ Main sirf weather, temperature, rain aur mausam se jude sawalon ke answer de sakta hoon. Kripya kisi bhi city ya village ka weather puchhein! 🙏`;
+    }
+
+    if (isMr) {
+      return `मी WeatherGPT एक AI हवामान सहाय्यक आहे. 🌤️ मी फक्त हवामान, तापमान, पाऊस आणि वातावरणाशी संबंधित प्रश्नांची उत्तरे देऊ शकतो. कृपया मला कोणत्याही शहराच्या किंवा गावाच्या हवामानाबद्दल विचारा! 🙏`;
+    }
+
+    return `I am WeatherGPT, an AI Weather Assistant. 🌤️ I can only assist with weather, temperature, rain forecast, and climate-related queries. Please ask me about the weather in any city or village! 🙏`;
   }
 }
 
