@@ -204,16 +204,163 @@ Returns all supported 22 Indian languages, persona options, known landmarks, fes
 
 ---
 
-### 3. Speech-to-Text Transcription API (`POST /api/voice/transcribe`)
-- **Headers**: `Content-Type: audio/wav` (or `audio/webm`, `audio/mp3`)
-- **Body**: Binary audio buffer
-- **Response**: `{ "success": true, "transcription": "...", "detectedLanguage": "en" }`
+### 5. Reverse Geocoding API (`POST /api/location/reverse-geocode`)
+Resolves latitude and longitude coordinates into city name, state, country, and formatted address.
+
+**Request Body:**
+```json
+{
+  "latitude": 22.8173,
+  "longitude": 70.8377
+}
+```
+
+**Response (`200 OK`):**
+```json
+{
+  "success": true,
+  "location": {
+    "name": "Morbi",
+    "latitude": 22.8173,
+    "longitude": 70.8377,
+    "country": "India",
+    "state": "Gujarat",
+    "timezone": "Asia/Kolkata"
+  },
+  "formattedAddress": "Morbi, Gujarat, India"
+}
+```
 
 ---
 
-### 4. Text-to-Speech Synthesis API (`POST /api/voice/speak`)
-- **Request Body**: `{ "text": "કાલે મોરબીમાં વરસાદની શક્યતા 78% છે.", "language": "gu" }`
-- **Response**: Binary MP3 audio buffer (`Content-Type: audio/mp3`)
+### 6. Disaster Intelligence Alerts API (`GET /api/disaster/alerts`)
+Fetches real-time disaster warnings (cyclones, floods, severe rain, heatwaves, high UV, lightning) for a location.
+
+**Query Parameters:**
+`location=Morbi` or `lat=22.8173&lon=70.8377`
+
+**Response (`200 OK`):**
+```json
+{
+  "success": true,
+  "location": "Morbi",
+  "alerts": [
+    {
+      "id": "alert-1725950000000-rain",
+      "type": "heavy_rain",
+      "severity": "warning",
+      "title": "Severe Rain Alert",
+      "description": "78% chance of heavy precipitation expected.",
+      "precautions": ["Avoid low-lying areas", "Carry rain gear"],
+      "affectedAreas": ["Morbi"],
+      "issuedAt": "2026-09-10T10:00:00.000Z"
+    }
+  ]
+}
+```
+
+---
+
+### 7. Emergency Safety Guidance API (`GET /api/disaster/emergency-guide`)
+Provides localized emergency safety protocols and step-by-step guidance for extreme weather disasters.
+
+**Query Parameters:**
+`disasterType=cyclone` & `language=gu`
+
+**Response (`200 OK`):**
+```json
+{
+  "success": true,
+  "guidance": {
+    "disasterType": "cyclone",
+    "title": "વાવાઝોડા (Cyclone) સુરક્ષા માર્ગદર્શિકા",
+    "dos": [
+      "મજબૂત મકાનમાં આશ્રય લો.",
+      "ઇમરજન્સી કિટ તૈયાર રાખો."
+    ],
+    "donts": [
+      "દરિયા કિનારે કે ક્ષતિગ્રસ્ત મકાનો પાસે ન જાઓ."
+    ],
+    "emergencyContacts": [
+      { "name": "રાજ્ય આપત્તિ મોનિટરિંગ (SDMA)", "number": "1070" },
+      { "name": "રાષ્ટ્રીય આપત્તિ પ્રતિભાવ બળ (NDRF)", "number": "1078" }
+    ]
+  }
+}
+```
+
+---
+
+### 8. Weather Comparison API (`POST /api/weather/compare`)
+Compares current weather, precipitation, air quality, and risk levels across multiple cities simultaneously.
+
+**Request Body:**
+```json
+{
+  "locations": ["Ahmedabad", "Mumbai", "Morbi"]
+}
+```
+
+**Response (`200 OK`):**
+```json
+{
+  "success": true,
+  "comparison": {
+    "locations": [
+      {
+        "location": { "name": "Ahmedabad" },
+        "temperature": 32,
+        "condition": "Sunny",
+        "rainProbability": 10,
+        "humidity": 50,
+        "windSpeed": 15,
+        "uvIndex": 7,
+        "airQuality": { "aqi": 65, "category": "Moderate" },
+        "riskSeverity": "low"
+      }
+    ],
+    "rankings": {
+      "hottest": "Ahmedabad",
+      "coolest": "Morbi",
+      "rainiest": "Morbi",
+      "bestWeather": "Ahmedabad"
+    }
+  }
+}
+```
+
+---
+
+### 9. Interactive Weather Map Overlay API (`GET /api/maps/weather`)
+Provides map layer tile configurations and color legends for weather map visualizers.
+
+**Query Parameters:**
+`layer=rain` (options: `rain`, `temperature`, `wind`, `clouds`), `lat=23.0225`, `lon=72.5714`, `zoom=7`
+
+**Response (`200 OK`):**
+```json
+{
+  "success": true,
+  "map": {
+    "layer": "rain",
+    "tileUrlTemplate": "https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=...",
+    "attribution": "Map data © OpenWeatherMap / Open-Meteo",
+    "center": { "lat": 23.0225, "lon": 72.5714, "zoom": 7 },
+    "legend": [
+      { "label": "Light Rain", "color": "#80C5DE" },
+      { "label": "Heavy Rain", "color": "#000080" }
+    ]
+  }
+}
+```
+
+---
+
+### 10. Integrated Air Quality, Forecast Confidence & Conversation Context in `/api/ask`
+The main query endpoint `/api/ask` automatically includes:
+- **`airQuality`**: AQI, PM2.5, PM10, CO, NO2, O3, SO2 values, AQI category, and persona-specific health advice.
+- **`forecastConfidence`**: Confidence score (0-100), rating (`HIGH` | `MODERATE` | `LOW`), horizon in days, and factor breakdowns.
+- **`conversationContext`**: Resolved location, target date (`today`, `tomorrow`, etc.), recognized intent, and active language.
 
 ---
 
@@ -226,9 +373,10 @@ npm install
 # 2. Build TypeScript project
 npm run build
 
-# 3. Run automated test suite (35 tests passing)
+# 3. Run automated test suite (51 tests passing across 7 test suites)
 npm test
 
 # 4. Start production REST API server
 npm start
 ```
+

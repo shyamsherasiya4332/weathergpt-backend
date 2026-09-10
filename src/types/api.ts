@@ -92,6 +92,90 @@ export interface WeatherTimeline {
   };
 }
 
+// ========== Production-Ready Upgrade Module Types ==========
+
+export interface AirQualityData {
+  aqi: number;                    // US AQI (0-500)
+  category: 'Good' | 'Moderate' | 'Unhealthy for Sensitive Groups' | 'Unhealthy' | 'Very Unhealthy' | 'Hazardous';
+  pm2_5: number;                  // ug/m3
+  pm10: number;                   // ug/m3
+  co?: number;
+  no2?: number;
+  o3?: number;
+  healthAdvice: string;
+  badgeColor: string;
+}
+
+export interface DisasterAlert {
+  id: string;
+  type: 'flood' | 'lightning' | 'cyclone' | 'heavy_rain' | 'extreme_heat';
+  severity: 'CRITICAL' | 'WARNING' | 'ADVISORY';
+  title: string;
+  description: string;
+  advice: string[];
+  affectedZone: string;
+  issuedAt: string;
+}
+
+export interface WeatherComparisonItem {
+  locationName: string;
+  temperature: number;
+  condition: string;
+  rainProbability: number;
+  humidity: number;
+  windSpeed: number;
+  overallRisk: number;
+  rank: number;
+}
+
+export interface WeatherComparisonResult {
+  locations: WeatherComparisonItem[];
+  rankings: {
+    warmest: string;
+    rainiest: string;
+    windiest: string;
+    bestWeather: string;
+  };
+  summary: string;
+}
+
+export interface MapLayerConfig {
+  layer: 'rain' | 'temp' | 'wind' | 'clouds';
+  tileUrlTemplate: string;
+  attribution: string;
+  legend: Array<{ value: string; color: string; label: string }>;
+  center: { latitude: number; longitude: number };
+  zoom: number;
+}
+
+export interface ForecastConfidence {
+  overallScore: number;          // 0-100%
+  horizonDays: number;
+  stabilityScore: number;
+  dataQualityScore: number;
+  rating: 'HIGH' | 'MODERATE' | 'LOW';
+  description: string;
+}
+
+export interface ConversationContextObject {
+  id: string;
+  resolvedLocation?: ResolvedLocation;
+  targetDate: string;
+  intent: string;
+  language: string;
+  turnCount: number;
+  lastUpdated: string;
+}
+
+export interface EmergencyGuidance {
+  disasterType: 'cyclone' | 'lightning' | 'flood' | 'heatwave' | 'general';
+  title: string;
+  summary: string;
+  dos: string[];
+  donts: string[];
+  helplines: Array<{ name: string; number: string }>;
+}
+
 // ========== Enhanced Ask Response (v2) ==========
 
 export interface AskResponseSuccess {
@@ -124,6 +208,11 @@ export interface AskResponseSuccess {
   suggested_followups?: string[];
   climate_fact?: string;
   ui_widgets?: Array<{ type: string; title: string; data: any }>;
+  // Production Upgrades
+  airQuality?: AirQualityData;
+  forecastConfidence?: ForecastConfidence;
+  conversationContext?: ConversationContextObject;
+  disasterAlerts?: DisasterAlert[];
   generated_at: string;
 }
 

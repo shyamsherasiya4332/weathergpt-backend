@@ -13,6 +13,9 @@ import { climateService } from '../services/climate/climateService.js';
 import { imageService } from '../services/image/imageService.js';
 import { notificationService } from '../services/notifications/notificationService.js';
 import { moesService } from '../services/moes/moesService.js';
+import { airQualityService } from '../services/airQuality/airQualityService.js';
+import { disasterService } from '../services/disaster/disasterService.js';
+import { confidenceService } from '../services/confidence/confidenceService.js';
 import { ApiErrorResponse, AskResponseSuccess } from '../types/api.js';
 import { logger } from '../utils/logger.js';
 
@@ -366,11 +369,24 @@ export class WeatherController {
         );
       }
 
-      // Advanced AI Services
+      // Advanced AI Services & Production Modules
       const climateAnomaly = climateService.analyzeClimateAnomaly(weatherData);
       const emergencyNotification = notificationService.generateNotificationPayload(weatherData, riskScores);
       const weatherInfographic = imageService.generateWeatherCardSvg(weatherData, riskScores);
       const moesBulletin = moesService.generateBulletin(weatherData, rainAnalysis, riskScores, nlu.language, question);
+
+      const airQuality = await airQualityService.getAirQuality(weatherData.location.latitude, weatherData.location.longitude, nlu.language);
+      const disasterAlerts = disasterService.generateDisasterAlerts(weatherData, rainAnalysis, riskScores);
+      const forecastConfidence = confidenceService.calculateConfidence(weatherData, 0);
+      const conversationContextObject = {
+        id: convContext.id,
+        resolvedLocation: weatherData.location,
+        targetDate: nlu.targetDate || 'today',
+        intent: nlu.intent,
+        language: nlu.language,
+        turnCount: convContext.turnCount || 1,
+        lastUpdated: new Date().toISOString()
+      };
 
       // 9. Return Enriched Production JSON Response
       const responsePayload: AskResponseSuccess = {
@@ -421,6 +437,11 @@ export class WeatherController {
         suggested_followups: moesBulletin.suggestedFollowups,
         climate_fact: moesBulletin.climateFact,
         ui_widgets: moesBulletin.uiWidgets,
+        // Production Upgrades
+        airQuality,
+        forecastConfidence,
+        conversationContext: conversationContextObject,
+        disasterAlerts,
         generated_at: new Date().toISOString()
       };
 
