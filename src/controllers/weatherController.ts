@@ -218,12 +218,26 @@ export class WeatherController {
 
       // Handle location missing or ambiguity
       if (weatherResult.error === 'LOCATION_MISSING') {
-        const askLocMsg =
-          nlu.language === 'gu'
-            ? 'કૃપા કરીને તમારું શહેર અથવા સ્થળ જણાવો (દા.ત. "મોરબી" અથવા "રાજકોટ").'
-            : nlu.language === 'hi'
-            ? 'कृपया अपना शहर या स्थान बताएं (जैसे "मोरबी" या "राजकोट")।'
+        const isRelativeQuery = /my\s*location|mara\s*location|mare\s*location|near\s*me|here|uper|per|par|અહીં|અહીંનું|મારી\s*જગ્યા|મેરે\s*પાસ|મેરે\s*શહર/i.test(question);
+        
+        let askLocMsg = '';
+        if (nlu.language === 'gu') {
+          askLocMsg = isRelativeQuery
+            ? 'તમારું લાઈવ હવામાન મેળવવા માટે કૃપા કરીને તમારા બ્રાઉઝરમાં Location Permission Allow કરો અથવા તમારા શહેરનું નામ જણાવો (દા.ત. "મોરબી" અથવા "રાજકોટ").'
+            : 'કૃપા કરીને તમારું શહેર અથવા સ્થળ જણાવો (દા.ત. "મોરબી" અથવા "રાજકોટ").';
+        } else if (nlu.language === 'hi' || nlu.language === 'hinglish') {
+          askLocMsg = isRelativeQuery
+            ? 'अपना लाइव मौसम जानने के लिए कृपया लोकेशन की अनुमति (Permission) दें या अपने शहर का नाम बताएं (जैसे "मोरबी" या "राजकोट)।'
+            : 'कृपया अपना शहर या स्थान बताएं (जैसे "मोरबी" या "राजकोट")।';
+        } else if (nlu.language === 'mr') {
+          askLocMsg = isRelativeQuery
+            ? 'आपले हवामान पाहण्यासाठी कृपया लोकेशन परवानगी द्या किंवा आपल्या शहराचे नाव सांगा (उदा. "मुंबई" किंवा "पुणे").'
+            : 'कृपया आपले शहर किंवा ठिकाण सांगा (उदा. "मुंबई" किंवा "पुणे").';
+        } else {
+          askLocMsg = isRelativeQuery
+            ? 'To get weather for your current location, please enable location permission in your browser or type your city name (e.g. "Morbi" or "Rajkot").'
             : 'Please specify your location (city or coordinates) to get live weather forecasts.';
+        }
 
         const resp: AskResponseSuccess = {
           success: true,

@@ -128,7 +128,7 @@ export class LanguageService {
   }
 
   private isGujlish(text: string): boolean {
-    const gujlishWords = ['varsad', 'padse', 'hase', 'savare', 'bapore', 'paramdivas', 'paramdivase', 'peramdivas', 'bafaro', 'thandi', 'garmi', 'kevi', 'kevo', 'kevu'];
+    const gujlishWords = ['varsad', 'padse', 'hase', 'savare', 'bapore', 'paramdivas', 'paramdivase', 'peramdivas', 'bafaro', 'thandi', 'garmi', 'kevi', 'kevo', 'kevu', 'che', 'chhe', 'uper', 'par', 'per', 'aaje', 'kale', 'vatavaran', 'weatherkevu'];
     const words = text.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/);
     return words.some(w => gujlishWords.includes(w));
   }
