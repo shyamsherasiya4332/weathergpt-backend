@@ -21,6 +21,17 @@ describe('POST /api/ask - Natural Language Weather Queries', () => {
     timezone: 'Asia/Kolkata'
   };
 
+  const todayDate = new Date();
+  const todayStr = todayDate.toISOString().split('T')[0];
+
+  const tomorrowDate = new Date();
+  tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+  const tomorrowStr = tomorrowDate.toISOString().split('T')[0];
+
+  const dayAfterDate = new Date();
+  dayAfterDate.setDate(dayAfterDate.getDate() + 2);
+  const dayAfterStr = dayAfterDate.toISOString().split('T')[0];
+
   const mockWeatherData = {
     location: mockLocation,
     current: {
@@ -37,40 +48,58 @@ describe('POST /api/ask - Natural Language Weather Queries', () => {
       visibility: 10000,
       uvIndex: 5,
       isDay: true,
-      time: '2026-09-09T12:00:00Z'
+      time: `${todayStr}T12:00:00Z`
     },
-    hourly: Array.from({ length: 48 }, (_, i) => ({
-      time: `2026-09-${i < 24 ? '09' : '10'}T${(i % 24).toString().padStart(2, '0')}:00`,
-      temperature: 28 + (i % 5),
-      precipitationProbability: i >= 40 && i <= 44 ? 78 : 10,
-      precipitationAmount: i >= 40 && i <= 44 ? 1.5 : 0,
-      weatherCode: i >= 40 ? 61 : 2,
-      condition: i >= 40 ? 'Slight rain' : 'Partly cloudy',
-      humidity: 70,
-      windSpeed: 10,
-      uvIndex: 4
-    })),
+    hourly: Array.from({ length: 72 }, (_, i) => {
+      const hDate = new Date();
+      hDate.setHours(hDate.getHours() + i);
+      const isoStr = hDate.toISOString().substring(0, 16);
+      const hDateStr = isoStr.split('T')[0];
+      const isTomorrow = hDateStr === tomorrowStr || hDateStr === dayAfterStr;
+      return {
+        time: isoStr,
+        temperature: 28 + (i % 5),
+        precipitationProbability: isTomorrow ? 78 : 10,
+        precipitationAmount: isTomorrow ? 1.5 : 0,
+        weatherCode: isTomorrow ? 61 : 2,
+        condition: isTomorrow ? 'Slight rain' : 'Partly cloudy',
+        humidity: 70,
+        windSpeed: 10,
+        uvIndex: 4
+      };
+    }),
     daily: [
       {
-        date: '2026-09-09',
+        date: todayStr,
         temperatureMax: 33,
         temperatureMin: 25,
         precipitationProbabilityMax: 20,
         precipitationSum: 0,
         condition: 'Partly cloudy',
-        sunrise: '2026-09-09T06:20',
-        sunset: '2026-09-09T18:50',
+        sunrise: `${todayStr}T06:20`,
+        sunset: `${todayStr}T18:50`,
         uvIndexMax: 8
       },
       {
-        date: '2026-09-10',
+        date: tomorrowStr,
         temperatureMax: 31,
         temperatureMin: 24,
         precipitationProbabilityMax: 78,
         precipitationSum: 4.2,
         condition: 'Moderate rain',
-        sunrise: '2026-09-10T06:21',
-        sunset: '2026-09-10T18:49',
+        sunrise: `${tomorrowStr}T06:21`,
+        sunset: `${tomorrowStr}T18:49`,
+        uvIndexMax: 6
+      },
+      {
+        date: dayAfterStr,
+        temperatureMax: 32,
+        temperatureMin: 24,
+        precipitationProbabilityMax: 78,
+        precipitationSum: 4.2,
+        condition: 'Moderate rain',
+        sunrise: `${dayAfterStr}T06:21`,
+        sunset: `${dayAfterStr}T18:49`,
         uvIndexMax: 6
       }
     ],
