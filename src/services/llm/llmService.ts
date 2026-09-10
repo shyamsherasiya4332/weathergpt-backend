@@ -481,9 +481,18 @@ Extract JSON:
     const localNow = getCurrentTimeInTimezone(tz);
     const targetDateStr = getRelativeDateString(nlu.targetDate || 'today', tz, nlu.specificDateStr);
 
+    const fullLangName = languageService.getLanguageName(nlu.language);
+
     const userPromptPayload = `
 User Question: "${question}"
-Detected Language: ${nlu.language}
+Detected Language: ${fullLangName} (Code: ${nlu.language})
+CRITICAL LANGUAGE REQUIREMENT: You MUST synthesize your response strictly in the EXACT SAME language and script as the user query (${fullLangName}).
+- If the user asked in Gujarati, reply in Gujarati.
+- If in Marathi, reply in Marathi.
+- If in Hindi, reply in Hindi.
+- If in Hinglish or Gujlish (Roman script), reply in Hinglish/Gujlish using Roman script.
+- Do NOT default to English unless the question was originally asked in English.
+
 User Intent Focus: ${nlu.intent} (${nlu.intent === 'temperature' ? 'User explicitly asks about GARMI / HEAT / TEMPERATURE. Answer MUST immediately focus on heat, temperature range, and heat comfort!' : nlu.intent === 'rain_forecast' ? 'User explicitly asks about RAIN.' : 'General Weather'})
 Location: ${weatherData.location.name}, ${weatherData.location.state || ''} ${weatherData.location.country || ''}
 Local Timezone: ${tz}
@@ -505,7 +514,7 @@ Precipitation / Rain Forecast Analysis for target window (${targetDateStr}):
 - Has Significant Rain Risk: ${rainAnalysis.hasRainRisk ? 'YES' : 'NO'}
 - Peak Time Window: ${rainAnalysis.peakRainTimeWindow || 'N/A'}
 
-Synthesize a clear, concise, accurate answer answering the user's exact question in ${nlu.language}.
+Synthesize a clear, concise, accurate answer answering the user's exact question in ${fullLangName} (${nlu.language}).
 If the user asks about GARMI / HEAT, address heat and temperature levels FIRST before rain details.
 Follow all rules of WeatherGPT system prompt.
 `;
@@ -539,7 +548,8 @@ Follow all rules of WeatherGPT system prompt.
       nlu.language === 'gu' ||
       /[\u0A80-\u0AFF]/.test(question) ||
       /\b(?:kale|aaje|varsad|padse|hase|nai|ke|sanje|savare|bapore|ma|mein|garmi|thandi)\b/i.test(question);
-    const isHindi = !isGujarati && (nlu.language === 'hi' || nlu.language === 'hinglish');
+    const isMarathi = !isGujarati && (nlu.language === 'mr' || (/[\u0900-\u097F]/.test(question) && /कसे|हवामान|आहे|आज|मुंबई|पुणे|नागपूर|कसा|कशी|झाले|काय|नाही|मध्ये/i.test(question)));
+    const isHindi = !isGujarati && !isMarathi && (nlu.language === 'hi' || nlu.language === 'hinglish');
 
     const stats = getTimeRangeStats(weatherData, targetDateStr, nlu.timeRange, nlu.specificTimeRange);
 
@@ -613,6 +623,20 @@ Follow all rules of WeatherGPT system prompt.
 💨 **પવન**: આશરે ${windSpeed} km/h (ભેજ: ${weatherData.current.humidity}%)
 
 — *India Meteorological Department (IMD) / MoES Data*`;
+    }
+
+    if (isMarathi) {
+      if (isGarmiQuery) {
+        return `${loc} मध्ये ${stats.timePeriodHi || 'आज'} तापमान ${minTemp}°C ते ${maxTemp}°C दरम्यान राहील ☀️. हवामान प्रामुख्याने उष्ण व अनुकूल राहील 🌡️. पावसाची शक्यता खूप कमी (${rainProb}%) आहे.\n\n💡 *सल्ला: मुबलक पाणी प्या आणि हलके सुती कपडे वापरा.*`;
+      }
+      if (isRainQuery) {
+        if (rainProb >= 50) {
+          return `होय, ${loc} मध्ये ${stats.timePeriodHi || 'आज'} पावसाचे वातावरण राहील 🌧️. सुमारे ${rainProb}% शक्‍यतेसह हलका ते मध्यम पाऊस (~${rainAmount} mm) पडू शकतो. सोबत छत्री ठेवा ☂️.\n\n🌡️ तापमान: ${minTemp}°C ते ${maxTemp}°C | 💨 वारा: ~${windSpeed} km/h`;
+        } else {
+          return `${loc} मध्ये ${stats.timePeriodHi || 'आज'} पावसाची शक्यता कमी (${rainProb}%) आहे 🌤️. हवामान छान राहील. तापमान ${minTemp}°C ते ${maxTemp}°C राहील 🌡️.`;
+        }
+      }
+      return `${loc} मध्ये ${stats.timePeriodHi || 'आज'} हवामान प्रामुख्याने स्वच्छ आणि छान राहील 🌤️. तापमान ${minTemp}°C ते ${maxTemp}°C दरम्यान राहील 🌡️ आणि वारा सुमारे ${windSpeed} km/h राहील 💨.`;
     }
 
     if (isHindi) {

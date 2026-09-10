@@ -90,6 +90,8 @@ export class LanguageService {
       primaryCode = 'ur'; primaryName = 'Urdu'; script = 'Arabic';
     } else if (isMeetei) {
       primaryCode = 'mni'; primaryName = 'Manipuri'; script = 'Meetei Mayek';
+    } else if (isLatin && this.isGujlish(text)) {
+      primaryCode = 'gu'; primaryName = 'Gujarati'; script = 'Latin';
     } else if (isLatin && this.isHinglish(text)) {
       primaryCode = 'hinglish'; primaryName = 'Hinglish'; script = 'Latin';
     }
@@ -116,17 +118,23 @@ export class LanguageService {
       en: 'English', hi: 'Hindi', gu: 'Gujarati', bn: 'Bengali', ta: 'Tamil', te: 'Telugu',
       kn: 'Kannada', ml: 'Malayalam', pa: 'Punjabi', or: 'Odia', as: 'Assamese', mr: 'Marathi',
       ur: 'Urdu', sa: 'Sanskrit', kok: 'Konkani', mai: 'Maithili', sd: 'Sindhi', ks: 'Kashmiri',
-      mni: 'Manipuri', brx: 'Bodo', doi: 'Dogri', hinglish: 'Hinglish'
+      mni: 'Manipuri', brx: 'Bodo', doi: 'Dogri', hinglish: 'Hinglish (Hindi in Roman script)'
     };
-    return names[code.toLowerCase()] || 'Unknown';
+    return names[code.toLowerCase()] || code;
   }
 
   public isIndicScript(text: string): boolean {
     return /[\u0900-\u0D7F\uABC0-\uABFF]/.test(text);
   }
+
+  private isGujlish(text: string): boolean {
+    const gujlishWords = ['varsad', 'padse', 'hase', 'savare', 'bapore', 'paramdivas', 'paramdivase', 'peramdivas', 'bafaro', 'thandi', 'garmi', 'kevi', 'kevo', 'kevu'];
+    const words = text.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/);
+    return words.some(w => gujlishWords.includes(w));
+  }
   
   private isHinglish(text: string): boolean {
-    const hinglishWords = ['hai', 'kya', 'aur', 'bhai', 'haan', 'nahi', 'karo', 'chalo', 'main', 'tum', 'me', 'mein', 'kal', 'hoga', 'hogi', 'aaje', 'varsad', 'padse', 'kab', 'ho', 'bhi', 'toh', 'par', 'per', 'batao', 'kaisa', 'kaisi'];
+    const hinglishWords = ['hai', 'kya', 'aur', 'bhai', 'haan', 'nahi', 'karo', 'chalo', 'main', 'tum', 'me', 'mein', 'kal', 'hoga', 'hogi', 'kab', 'ho', 'bhi', 'toh', 'par', 'per', 'batao', 'kaisa', 'kaisi'];
     const words = text.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/);
     return words.some(w => hinglishWords.includes(w));
   }
