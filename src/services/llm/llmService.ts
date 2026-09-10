@@ -451,6 +451,7 @@ Extract JSON:
 
     if (locationName) {
       locationName = locationName
+        .replace(/\b(?:my\s*location|mara\s*location|mare\s*location|near\s*me|my\s*city|here|અહીં|અહીંનું|મારી\s*જગ્યા|મેરે\s*પાસ|મેરે\s*શહર)\b/gi, '')
         .replace(/\b(?:gujarat|maharashtra|rajasthan|punjab|haryana|delhi|karnataka|kerala|tamilnadu|india|bharat)\b/gi, '')
         .replace(/\b(?:varsad|rain|weather|forecast|hoga|hogi|padse|hase|ke|nai|kya|aaje|kale|today|tomorrow|shyam|sanje|savare|temp|taapman|garmi|thandi|bafaro|kase|aahe|hawaman)\b/gi, '')
         .trim();
