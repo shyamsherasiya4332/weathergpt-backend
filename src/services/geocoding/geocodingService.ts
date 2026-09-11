@@ -70,6 +70,59 @@ export class OpenMeteoGeocodingProvider implements IGeocodingProvider {
       }
 
       if (!results || results.length === 0) {
+        // Fallback 2: Query OpenStreetMap Nominatim for native Indic script places (Hindi, Gujarati, Marathi, etc.)
+        try {
+          logger.info(`Geocoding fallback 2 (Nominatim) for: '${trimmed}'`);
+          const nominatimResp = await axios.get<Array<{
+            name?: string;
+            lat: string;
+            lon: string;
+            display_name?: string;
+            address?: {
+              city?: string;
+              town?: string;
+              village?: string;
+              state?: string;
+              country?: string;
+            };
+          }>>('https://nominatim.openstreetmap.org/search', {
+            params: {
+              q: trimmed,
+              format: 'json',
+              countrycodes: 'in',
+              addressdetails: 1,
+              limit: 5
+            },
+            headers: {
+              'User-Agent': 'WeatherGPT/1.0'
+            },
+            timeout: 5000
+          });
+
+          if (nominatimResp.data && nominatimResp.data.length > 0) {
+            const first = nominatimResp.data[0];
+            const locName = first.name || first.address?.city || first.address?.town || first.address?.village || trimmed;
+            const nominatimLocation: ResolvedLocation = {
+              name: locName,
+              latitude: parseFloat(first.lat),
+              longitude: parseFloat(first.lon),
+              country: first.address?.country || 'India',
+              state: first.address?.state,
+              timezone: 'Asia/Kolkata'
+            };
+            const geocodeResult: GeocodingResult = {
+              success: true,
+              location: nominatimLocation,
+              isAmbiguous: false,
+              matches: [nominatimLocation]
+            };
+            cache.set(cacheKey, geocodeResult, env.CACHE_TTL_GEOCODING);
+            return geocodeResult;
+          }
+        } catch (nomErr) {
+          logger.warn(`Nominatim geocoding fallback failed for '${trimmed}':`, nomErr);
+        }
+
         const notFoundResult: GeocodingResult = {
           success: false,
           errorMessage: `Location '${locationName}' not found.`

@@ -55,16 +55,10 @@ export class WeatherController {
     try {
       const { question, location: locationInput, language: reqLanguage, conversationId: reqConvId, persona } = req.body;
       
-      // Clean query and extract language if frontend injected a system directive
-      let cleanQuestion = (question || '').trim();
-      let extractedDirectiveLang: string | undefined;
-
-      const directiveMatch = cleanQuestion.match(/\[System Directive:\s*The user has selected the language:\s*([^\]\n]+?)\s+in the UI/i);
-      if (directiveMatch) {
-        const langName = directiveMatch[1].trim();
-        cleanQuestion = cleanQuestion.replace(/\[System Directive:[\s\S]*?\]/gi, '').trim();
-        extractedDirectiveLang = languageService.getCodeFromName(langName);
-      }
+      // Clean query and strip any UI-injected system directives (dashboard language directives)
+      let cleanQuestion = (question || '')
+        .replace(/\[System Directive:[\s\S]*?\]/gi, '')
+        .trim();
 
       if (!cleanQuestion) {
         cleanQuestion = (question || '').trim();
@@ -78,22 +72,11 @@ export class WeatherController {
         convContext = conversationService.createConversation();
       }
 
-      // 2. Language Detection across all 22 official Indian languages + Hinglish
+      // 2. Language Auto-Detection:
+      // The language dropdown in the UI is strictly for Dashboard display.
+      // In AI Chat, language MUST be 100% AUTO-DETECTED from what the user asks!
       const detectedLang = languageService.detect(cleanQuestion);
-
-      // If the question is written in Gujarati/Hindi/Indic script or Gujlish/Hinglish,
-      // the question's natural detected language ALWAYS takes priority over frontend's default 'en'!
-      let effectiveLanguage = detectedLang.code;
-      if (reqLanguage && reqLanguage !== 'auto' && reqLanguage !== 'en') {
-        // User explicitly picked a specific non-English language in UI dropdown (e.g. 'gu', 'hi', 'mr')
-        effectiveLanguage = reqLanguage;
-      } else if (extractedDirectiveLang) {
-        effectiveLanguage = extractedDirectiveLang;
-      } else if (detectedLang.code !== 'en') {
-        effectiveLanguage = detectedLang.code;
-      } else {
-        effectiveLanguage = reqLanguage || 'en';
-      }
+      const effectiveLanguage = detectedLang.code;
 
       // 3. NLU & Intent parsing
       const nlu = await llmService.parseNLU(cleanQuestion, locationInput);
