@@ -374,11 +374,11 @@ Extract JSON:
     let targetDate: ParsedNLU['targetDate'] = 'today';
     if (/tarparamdivas|tar\s*param\s*divas|તરપરમદિવસે|તર\s*પરમ\s*દિવસે|narson|narsong/i.test(question)) {
       targetDate = 'day_after_next';
-    } else if (/paramdivas|paramdivase|param\s*divas|peramdivas|પરમદિવસે|પરમદિવસ|parso|parson|day after tomorrow/i.test(question)) {
+    } else if (/paramdivas|paramdivase|param\s*divas|peramdivas|પરમદિવસે|પરમદિવસ|પરમદિન|parso|parson|day after tomorrow/i.test(question)) {
       targetDate = 'day_after_tomorrow';
-    } else if (/tomorrow|kale|કાલે|कल|kal\b/i.test(question)) {
+    } else if (/tomorrow|kale|કાલે|કાલ|कल|kal\b|kalnu|kalni|kalno|kalna|kal\s*nu|kal\s*ni|kal\s*no|kal\s*na/i.test(question)) {
       targetDate = 'tomorrow';
-    } else if (/today|aaje|આજે|आज/i.test(question)) {
+    } else if (/today|aaje|આજે|આજ|आज|aaj\b|aajnu|aajni|aajno|aajna|aaj\s*nu|aaj\s*ni|aaj\s*no|aaj\s*na/i.test(question)) {
       targetDate = 'today';
     }
 
@@ -566,9 +566,9 @@ Extract JSON:
     }
 
     const isExplicitOffTopic = /what\s*is\s*my\s*name|maru\s*naa?m|mera\s*naa?m|who\s*am\s*i|my\s*age|maru\s*nam|mera\s*nam|who\s*are\s*you|tamaru\s*naam|aapka\s*naam|who\s*made\s*you|kone\s*banavya|kisine\s*banaya|who\s*created|tell\s*me\s*a?\s*joke|chutkule|joke\s*suno|tell\s*story|kahani|recipe|cook|capital\s*of|prime\s*minister|pm\s*of|president|who\s*is\s*the|calculate|2\s*\+\s*2|math|programming|write\s*a?\s*code|song\s*suno|gana\s*gao|song|movie|cinema/i.test(question);
-    const hasWeatherKeywords = /weather|havaman|vatavaran|mausam|hawa|rain|varsad|barish|garmi|bafaro|thandi|tapman|taapman|temp|temperature|cloud|vadal|badal|sun|tado|dhoop|climate|chhatri|umbrella|storm|toofan|cyclone|flood|pur|wind|pawan|pavan|humidity|uv|degree|ડિગ્રી|ઝાપટાં|ઝાપટું/i.test(question);
+    const hasWeatherKeywords = /weather|havaman|vatavaran|mausam|hawa|rain|varsad|barish|garmi|bafaro|thandi|tapman|taapman|temp|temperature|cloud|vadal|badal|sun|tado|dhoop|climate|chhatri|umbrella|storm|toofan|cyclone|flood|pur|wind|pawan|pavan|humidity|uv|degree|ડિગ્રી|ઝાપટાં|ઝાપટું|કાલ|આજ|સાંજ|સવાર|બપોર|રાત|kal|kale|kalnu|aaj|aaje|aajnu|sanj|sanje|savare|bapore|ratre|kevuk?|su\s*hase|kevu\s*chhe/i.test(question);
 
-    if (isExplicitOffTopic || (intent === 'general_forecast' && !hasWeatherKeywords && !locationName && !/^(?:how|kevu|kaisa|kaha|kya|su|chhe|hai)\b/i.test(question.trim()))) {
+    if (isExplicitOffTopic || (intent === 'general_forecast' && !hasWeatherKeywords && !locationName && targetDate === 'today' && !/^(?:how|kevu|kaisa|kaha|kya|su|chhe|hai|kal|aaj)\b/i.test(question.trim()))) {
       intent = 'unknown';
     }
 
