@@ -1,4 +1,4 @@
-import { ResolvedLocation } from './weather.js';
+import { ResolvedLocation, WeatherData } from './weather.js';
 
 // ========== Existing Types (Preserved) ==========
 export interface LocationInput {
@@ -275,6 +275,7 @@ export interface WeatherLensInput {
   latitude?: number;
   longitude?: number;
   language?: string;
+  existingWeatherData?: WeatherData;
 }
 
 export interface WeatherLensResult {

@@ -40,18 +40,24 @@ class WeatherLensService {
     let liveCloudCover = 25;
     let currentTemp = 30;
 
-    try {
-      const weatherData = await openMeteoProvider.getWeatherData({
-        name: locName,
-        latitude: lat,
-        longitude: lon,
-        timezone: 'Asia/Kolkata'
-      });
-      liveRainProb = weatherData.current.rainProbability ?? 15;
-      liveCloudCover = weatherData.current.cloudCover ?? 30;
-      currentTemp = Math.round(weatherData.current.temperature);
-    } catch {
-      // Use defaults if live fetch fails
+    if (input.existingWeatherData) {
+      liveRainProb = input.existingWeatherData.current.rainProbability ?? 15;
+      liveCloudCover = input.existingWeatherData.current.cloudCover ?? 30;
+      currentTemp = Math.round(input.existingWeatherData.current.temperature);
+    } else {
+      try {
+        const weatherData = await openMeteoProvider.getWeatherData({
+          name: locName,
+          latitude: lat,
+          longitude: lon,
+          timezone: 'Asia/Kolkata'
+        });
+        liveRainProb = weatherData.current.rainProbability ?? 15;
+        liveCloudCover = weatherData.current.cloudCover ?? 30;
+        currentTemp = Math.round(weatherData.current.temperature);
+      } catch {
+        // Use defaults if live fetch fails
+      }
     }
 
     // Heuristic Visual Sky Classification

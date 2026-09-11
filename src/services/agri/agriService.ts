@@ -1,6 +1,7 @@
 import { geocodingService } from '../geocoding/geocodingService.js';
 import { openMeteoProvider } from '../weather/weatherService.js';
 import { AgriAdvisoryResult } from '../../types/api.js';
+import { WeatherData } from '../../types/weather.js';
 import { logger } from '../../utils/logger.js';
 
 class AgriService {
@@ -13,14 +14,15 @@ class AgriService {
     lat?: number,
     lon?: number,
     cropType?: string,
-    language: string = 'en'
+    language: string = 'en',
+    existingWeatherData?: WeatherData
   ): Promise<AgriAdvisoryResult> {
     const lang = language.toLowerCase();
     let targetLat = lat ?? 22.30;
     let targetLon = lon ?? 70.79;
     let locName = locationName || 'Rajkot';
 
-    if (locationName && (lat === undefined || lon === undefined)) {
+    if (!existingWeatherData && locationName && (lat === undefined || lon === undefined)) {
       try {
         const geoRes = await geocodingService.geocode(locationName);
         if (geoRes.success && geoRes.location) {
@@ -38,19 +40,26 @@ class AgriService {
     let windSpeed = 12;
     let temp = 30;
 
-    try {
-      const weatherData = await openMeteoProvider.getWeatherData({
-        name: locName,
-        latitude: targetLat,
-        longitude: targetLon,
-        timezone: 'Asia/Kolkata'
-      });
-      rainProb = weatherData.current.rainProbability ?? 15;
-      humidity = weatherData.current.humidity ?? 55;
-      windSpeed = weatherData.current.windSpeed ?? 12;
-      temp = Math.round(weatherData.current.temperature);
-    } catch {
-      // Fallback defaults
+    if (existingWeatherData) {
+      rainProb = existingWeatherData.current.rainProbability ?? 15;
+      humidity = existingWeatherData.current.humidity ?? 55;
+      windSpeed = existingWeatherData.current.windSpeed ?? 12;
+      temp = Math.round(existingWeatherData.current.temperature);
+    } else {
+      try {
+        const weatherData = await openMeteoProvider.getWeatherData({
+          name: locName,
+          latitude: targetLat,
+          longitude: targetLon,
+          timezone: 'Asia/Kolkata'
+        });
+        rainProb = weatherData.current.rainProbability ?? 15;
+        humidity = weatherData.current.humidity ?? 55;
+        windSpeed = weatherData.current.windSpeed ?? 12;
+        temp = Math.round(weatherData.current.temperature);
+      } catch {
+        // Fallback defaults
+      }
     }
 
     // Calculate Krishi Index (0-100 score for farming activities)

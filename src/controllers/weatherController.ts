@@ -403,20 +403,34 @@ export class WeatherController {
       const weatherInfographic = imageService.generateWeatherCardSvg(weatherData, riskScores);
       const moesBulletin = moesService.generateBulletin(weatherData, rainAnalysis, riskScores, nlu.language, cleanQuestion);
 
-      const airQuality = await airQualityService.getAirQuality(weatherData.location.latitude, weatherData.location.longitude, nlu.language);
       const disasterAlerts = disasterService.generateDisasterAlerts(weatherData, rainAnalysis, riskScores);
       const forecastConfidence = confidenceService.calculateConfidence(weatherData, 0);
       const explainWhy = explainableService.generateExplanation(weatherData, weatherData.location.name);
       const communityReports = communityService.calculateCommunityConfidence(weatherData.location.name, weatherData.location.latitude, weatherData.location.longitude);
       const shareCard = shareService.generateShareCard(weatherData.location.name, weatherData, cleanQuestion);
-      const agri = await agriService.generateAgriAdvisory(weatherData.location.name, weatherData.location.latitude, weatherData.location.longitude, undefined, nlu.language);
-      const weatherLens = await weatherLensService.analyzeSkyImage({
-        question: cleanQuestion,
-        latitude: weatherData.location.latitude,
-        longitude: weatherData.location.longitude,
-        location: weatherData.location,
-        language: nlu.language
-      });
+
+      // Fast parallel enrichment with pre-fetched weatherData (eliminates duplicate Open-Meteo API network calls)
+      const [airQuality, agri, weatherLens] = await Promise.all([
+        airQualityService.getAirQuality(weatherData.location.latitude, weatherData.location.longitude, nlu.language).catch((err) => {
+          logger.warn('AirQuality fetch failed non-critically:', err);
+          return undefined;
+        }),
+        agriService.generateAgriAdvisory(weatherData.location.name, weatherData.location.latitude, weatherData.location.longitude, undefined, nlu.language, weatherData).catch((err) => {
+          logger.warn('Agri advisory failed non-critically:', err);
+          return undefined;
+        }),
+        weatherLensService.analyzeSkyImage({
+          question: cleanQuestion,
+          latitude: weatherData.location.latitude,
+          longitude: weatherData.location.longitude,
+          location: weatherData.location,
+          language: nlu.language,
+          existingWeatherData: weatherData
+        }).catch((err) => {
+          logger.warn('WeatherLens analysis failed non-critically:', err);
+          return undefined;
+        })
+      ]);
 
       const conversationContextObject = {
         id: convContext.id,

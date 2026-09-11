@@ -37,7 +37,7 @@ export class OpenAIClientWrapper {
     if (effectiveGeminiKey) {
       this.geminiDirectKey = effectiveGeminiKey;
       this.providerName = 'gemini';
-      this.modelName = env.LLM_MODEL && !env.LLM_MODEL.startsWith('gpt') ? env.LLM_MODEL : 'gemini-3.5-flash';
+      this.modelName = env.LLM_MODEL && !env.LLM_MODEL.startsWith('gpt') ? env.LLM_MODEL : 'gemini-3.5-flash-lite';
       
       try {
         this.client = new OpenAI({
@@ -125,7 +125,10 @@ export class OpenAIClientWrapper {
     const res = await axios.post(
       url,
       {
-        contents: [{ role: 'user', parts: [{ text: 'Hello! Respond with: "OK: ' + cleanModel + '"' }] }]
+        contents: [{ role: 'user', parts: [{ text: 'Hello! Respond with: "OK: ' + cleanModel + '"' }] }],
+        generationConfig: {
+          thinkingConfig: { thinkingBudget: 0 }
+        }
       },
       {
         headers: {
@@ -203,20 +206,21 @@ export class OpenAIClientWrapper {
     jsonMode: boolean
   ): Promise<string> {
     const modelsToTry = [
+      'gemini-3.5-flash-lite',
+      'gemini-3.1-flash-lite',
       this.modelName,
       'gemini-3.5-flash',
       'gemini-3.6-flash',
-      'gemini-3.5-flash-lite',
       'gemini-flash-latest'
     ].filter((v, idx, arr) => arr.indexOf(v) === idx && v.startsWith('gemini'));
 
     let lastErr: Error | null = null;
     const cleanKey = apiKey.trim();
+    const fullPrompt = systemPrompt ? `${systemPrompt}\n\n${userPrompt}` : userPrompt;
 
     for (const model of modelsToTry) {
       try {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(cleanKey)}`;
-        const fullPrompt = systemPrompt ? `${systemPrompt}\n\n${userPrompt}` : userPrompt;
         
         const payload: Record<string, unknown> = {
           contents: [
@@ -227,6 +231,9 @@ export class OpenAIClientWrapper {
           ],
           generationConfig: {
             temperature: 0.3,
+            thinkingConfig: {
+              thinkingBudget: 0
+            },
             ...(jsonMode ? { responseMimeType: 'application/json' } : {})
           }
         };
@@ -242,7 +249,7 @@ export class OpenAIClientWrapper {
             'Content-Type': 'application/json',
             'x-goog-api-key': cleanKey
           },
-          timeout: 15000
+          timeout: 8000
         });
 
         const answer = res.data.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -250,6 +257,35 @@ export class OpenAIClientWrapper {
           return answer;
         }
       } catch (err: unknown) {
+        // If thinkingConfig caused an error (e.g. HTTP 400 unsupported option), retry without thinkingConfig
+        if (axios.isAxiosError(err) && err.response?.status === 400) {
+          try {
+            const retryPayload = {
+              contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
+              generationConfig: {
+                temperature: 0.3,
+                ...(jsonMode ? { responseMimeType: 'application/json' } : {})
+              }
+            };
+            const retryRes = await axios.post<{
+              candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+            }>(
+              `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(cleanKey)}`,
+              retryPayload,
+              {
+                headers: { 'Content-Type': 'application/json', 'x-goog-api-key': cleanKey },
+                timeout: 8000
+              }
+            );
+            const retryAnswer = retryRes.data.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (retryAnswer) {
+              return retryAnswer;
+            }
+          } catch {
+            // Proceed to next model
+          }
+        }
+
         let msg = 'Gemini error';
         if (axios.isAxiosError(err)) {
           const status = err.response?.status;
