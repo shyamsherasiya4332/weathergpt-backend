@@ -594,49 +594,32 @@ Extract JSON:
     const localNow = getCurrentTimeInTimezone(tz);
     const targetDateStr = getRelativeDateString(nlu.targetDate || 'today', tz, nlu.specificDateStr);
 
+    const targetDateLabel = nlu.targetDate === 'tomorrow' ? 'Tomorrow' : nlu.targetDate === 'day_after_tomorrow' ? 'Day After Tomorrow' : 'Today';
+    const targetDateLabelGu = nlu.targetDate === 'tomorrow' ? 'કાલે' : nlu.targetDate === 'day_after_tomorrow' ? 'પરમદિવસે' : 'આજે';
     const fullLangName = languageService.getLanguageName(nlu.language);
 
     const userPromptPayload = `
 User Question: "${question}"
 Detected Language: ${fullLangName} (Code: ${nlu.language})
-CRITICAL LANGUAGE REQUIREMENT: You MUST synthesize your response strictly in the EXACT SAME language and script as the user query (${fullLangName}).
-- If the user asked in Gujarati OR Gujlish (Gujarati words typed in English/Latin letters, e.g. "aaje morbi ma varsad padse ke nahi?", "atyare morbi ma varsad chhe?"), ALWAYS reply in pure Gujarati script (શુદ્ધ ગુજરાતી લિપિમાં, e.g. "ના, અત્યારે મોરબીમાં વરસાદ નથી. આકાશ સાફ છે..."). NEVER reply in English or Roman script when the question is in Gujarati or Gujlish!
-- If the user asked in pure English (e.g. "what is the weather in Morbi?"), reply in natural, fluent English. NEVER reply in Hindi or Gujarati when the question is in English!
-- If in Marathi, reply in Marathi.
-- If in Hindi or Hinglish, reply in Hindi.
 
-User Intent Focus: ${nlu.intent}
-Specific Question Guidance: Answer the user's EXACT question directly in the very first sentence. For example:
-- If user asks about drying clothes/laundry: Focus immediately on outdoor drying suitability and rain risk!
-- If user asks about travel/driving: Focus immediately on highway road conditions and rain/wind safety!
-- If user asks about humidity/bafaro: Focus immediately on humidity % and mugginess!
-- If user asks about wind: Focus immediately on wind speed in km/h and gustiness!
-- If user asks about cold/thandi: Focus immediately on minimum temperature drop and jacket/sweater advice!
-- If user asks about umbrella/raincoat: Answer directly whether an umbrella is required!
-- Do NOT output repetitive generic templates across different queries. Make the answer unique to "${weatherData.location.name}" and the user's question.
-
-Location: ${weatherData.location.name}, ${weatherData.location.state || ''} ${weatherData.location.country || ''}
-Local Timezone: ${tz}
-Current Local Date & Time: ${localNow}
-Target Forecast Date: ${targetDateStr}
-Target Time Window Requested: ${nlu.timeRange || 'full_day'} (${nlu.specificTimeRange ? `hours ${nlu.specificTimeRange.startHour} to ${nlu.specificTimeRange.endHour}` : 'all day'})
-
-Live Weather Context:
+Live Weather API Data:
+- Location Name: ${weatherData.location.name}
+- Target Date: ${targetDateLabel} (${targetDateStr})
 - Current Temperature: ${weatherData.current.temperature}°C (Feels like ${weatherData.current.apparentTemperature}°C)
-- Current Condition: ${weatherData.current.condition}
-- Current Rain Probability: ${weatherData.current.rainProbability}%
-- Current Humidity: ${weatherData.current.humidity}%
-- Current Wind Speed: ${weatherData.current.windSpeed} km/h
-- Current UV Index: ${weatherData.current.uvIndex}
+- Temperature Range: ${weatherData.daily[0]?.temperatureMin ? Math.round(weatherData.daily[0].temperatureMin) : Math.round(weatherData.current.temperature)}°C to ${weatherData.daily[0]?.temperatureMax ? Math.round(weatherData.daily[0].temperatureMax) : Math.round(weatherData.current.temperature)}°C
+- Current Sky Condition: ${weatherData.current.condition}
+- Rain Chance: ${rainAnalysis.maxRainProbability}% (${rainAnalysis.maxRainProbability >= 60 ? 'likely' : rainAnalysis.maxRainProbability >= 30 ? 'possible' : 'unlikely'})
+- Expected Rain Amount: ${rainAnalysis.totalRainAmountMm} mm
+- Wind Speed: ${weatherData.current.windSpeed} km/h
+- Humidity: ${weatherData.current.humidity}%
 
-Precipitation / Rain Forecast Analysis for target window (${targetDateStr}):
-- Maximum Rain Probability: ${rainAnalysis.maxRainProbability}%
-- Total Expected Rain Amount: ${rainAnalysis.totalRainAmountMm} mm
-- Has Significant Rain Risk: ${rainAnalysis.hasRainRisk ? 'YES' : 'NO'}
-- Peak Time Window: ${rainAnalysis.peakRainTimeWindow || 'N/A'}
-
-Synthesize a clear, concise, accurate answer answering the user's exact question in ${fullLangName} (${nlu.language}).
-Follow all rules of WeatherGPT system prompt.
+Strictly format your response according to the Output Format in your system prompt:
+- Location: ${weatherData.location.name}
+- ${targetDateLabel}: 1–2 sentence summary
+- Bullet points: 🌡️ Temperature, 🌧️ Rain chance, ☁️ Sky, 💨 Wind
+- Advice: One practical sentence (umbrella only if rain chance is meaningful)
+- Length: Strictly under 120 words
+- Script: ${nlu.language === 'gu' ? 'Pure Gujarati script' : nlu.language === 'hi' ? 'Pure Hindi script' : 'English'}.
 `;
 
     if (openAIClient.isConfigured()) {
@@ -646,7 +629,7 @@ Follow all rules of WeatherGPT system prompt.
           userPromptPayload
         );
         if (answer && answer.trim().length > 0) {
-          return this.appendFollowupSuggestion(answer.trim(), nlu.language, question);
+          return answer.trim();
         }
       } catch (err) {
         logger.warn('LLM answer generation failed, using rule-based fallback:', err);
@@ -654,7 +637,7 @@ Follow all rules of WeatherGPT system prompt.
     }
 
     const fallbackAns = this.generateFallbackAnswer(question, nlu, weatherData, rainAnalysis, targetDateStr);
-    return this.appendFollowupSuggestion(fallbackAns, nlu.language, question);
+    return fallbackAns;
   }
 
   private generateFallbackAnswer(
