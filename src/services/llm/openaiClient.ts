@@ -115,26 +115,27 @@ export class OpenAIClientWrapper {
     return res.data;
   }
 
-  async testDirectModel(modelName: string): Promise<unknown> {
+  async testDirectModel(modelName: string, thinkingLevel?: string): Promise<unknown> {
     if (!this.geminiDirectKey) {
       throw new Error('No Gemini key configured');
     }
     const cleanKey = this.geminiDirectKey.trim();
     const cleanModel = modelName.replace(/^models\//, '');
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:generateContent?key=${encodeURIComponent(cleanKey)}`;
-    const res = await axios.post(
-      url,
-      {
-        contents: [{ role: 'user', parts: [{ text: 'Hello! Respond with: "OK: ' + cleanModel + '"' }] }]
-      },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': cleanKey
-        },
-        timeout: 10000
+    const payload: Record<string, unknown> = {
+      contents: [{ role: 'user', parts: [{ text: 'Hello! Respond with: "OK: ' + cleanModel + '"' }] }],
+      generationConfig: {
+        maxOutputTokens: 150,
+        ...(thinkingLevel ? { thinkingConfig: { thinkingLevel } } : {})
       }
-    );
+    };
+    const res = await axios.post(url, payload, {
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': cleanKey
+      },
+      timeout: 10000
+    });
     return res.data;
   }
 
@@ -215,19 +216,24 @@ export class OpenAIClientWrapper {
     const fullPrompt = systemPrompt ? `${systemPrompt}\n\n${userPrompt}` : userPrompt;
 
     for (const model of modelsToTry) {
+      const tModel = Date.now();
       try {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(cleanKey)}`;
         
         const payload: Record<string, unknown> = {
+          ...(systemPrompt ? { systemInstruction: { parts: [{ text: systemPrompt }] } } : {}),
           contents: [
             {
               role: 'user',
-              parts: [{ text: fullPrompt }]
+              parts: [{ text: userPrompt }]
             }
           ],
           generationConfig: {
             temperature: 0.3,
-            maxOutputTokens: 550,
+            maxOutputTokens: 350,
+            thinkingConfig: {
+              thinkingLevel: 'MINIMAL'
+            },
             ...(jsonMode ? { responseMimeType: 'application/json' } : {})
           }
         };
@@ -248,9 +254,40 @@ export class OpenAIClientWrapper {
 
         const answer = res.data.candidates?.[0]?.content?.parts?.[0]?.text;
         if (answer) {
+          logger.info(`[LLM] Model ${model} returned response in ${Date.now() - tModel}ms`);
           return answer;
         }
       } catch (err: unknown) {
+        // If 400 (e.g. systemInstruction or thinkingConfig unsupported on older schema), retry cleanly without them
+        if (axios.isAxiosError(err) && err.response?.status === 400) {
+          try {
+            const retryPayload = {
+              contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
+              generationConfig: {
+                temperature: 0.3,
+                maxOutputTokens: 350,
+                ...(jsonMode ? { responseMimeType: 'application/json' } : {})
+              }
+            };
+            const retryRes = await axios.post<{
+              candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+            }>(
+              `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(cleanKey)}`,
+              retryPayload,
+              {
+                headers: { 'Content-Type': 'application/json', 'x-goog-api-key': cleanKey },
+                timeout: 8000
+              }
+            );
+            const retryAnswer = retryRes.data.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (retryAnswer) {
+              logger.info(`[LLM] Model ${model} (fallback config) returned response in ${Date.now() - tModel}ms`);
+              return retryAnswer;
+            }
+          } catch {
+            // Proceed to next model
+          }
+        }
 
         let msg = 'Gemini error';
         if (axios.isAxiosError(err)) {
@@ -261,7 +298,7 @@ export class OpenAIClientWrapper {
           msg = err.message;
         }
         lastErr = new Error(`Gemini ${model} failed: ${msg}`);
-        logger.warn(`Gemini model ${model} failed, trying next: ${msg}`);
+        logger.warn(`Gemini model ${model} failed in ${Date.now() - tModel}ms, trying next: ${msg}`);
       }
     }
 

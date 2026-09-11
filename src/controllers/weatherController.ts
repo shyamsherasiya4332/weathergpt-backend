@@ -66,6 +66,8 @@ export class WeatherController {
 
       logger.info(`Received weather query: "${cleanQuestion}"`);
 
+      const tReqStart = Date.now();
+
       // 1. Conversation Memory retrieval
       let convContext = reqConvId ? conversationService.getConversation(reqConvId) : undefined;
       if (!convContext && reqConvId) {
@@ -79,8 +81,10 @@ export class WeatherController {
       const effectiveLanguage = detectedLang.code;
 
       // 3. NLU & Intent parsing
+      const tNluStart = Date.now();
       const nlu = await llmService.parseNLU(cleanQuestion, locationInput);
       nlu.language = effectiveLanguage;
+      const tNlu = Date.now() - tNluStart;
 
       // Check Greeting Intent (e.g. "hello", "hi", "kem cho", "namaste", "halo", "ram ram")
       const isGreetingPattern = /^(?:hello|hi|hey|helo|kem\s*cho|namaste|namaskar|halo|ram\s*ram|su\s*prabhat|good\s*morning|good\s*evening|good\s*afternoon|good\s*night|pranam|jay\s*shree\s*krishna|har\s*har\s*mahadev|kaisa\s*ho|નમસ્તે|નમસ્કાર|કેમ\s*છો|હલો|પ્રણામ|હાય|હેલો|હરિ\s*ઓમ)\b/i.test(cleanQuestion.trim());
@@ -275,10 +279,12 @@ export class WeatherController {
         extractedName = 'Ahmedabad';
       }
 
+      const tWeatherStart = Date.now();
       const weatherResult = await weatherService.resolveAndFetchWeather(
         finalLocationInput,
         extractedName
       );
+      const tWeather = Date.now() - tWeatherStart;
 
       // Handle location missing or ambiguity
       if (weatherResult.error === 'LOCATION_MISSING') {
@@ -376,12 +382,14 @@ export class WeatherController {
       const timelineData = timelineService.generateTimeline(weatherData, targetDateStr);
 
       // Natural language answer generation
+      const tLlmStart = Date.now();
       const baseAnswer = await llmService.generateAnswer(
         cleanQuestion,
         nlu,
         weatherData,
         rainAnalysis
       );
+      const tLlm = Date.now() - tLlmStart;
 
       // RAG Knowledge Retrieval — augment answer with expert knowledge
       const ragContext = ragService.buildContext(cleanQuestion, nlu.language, weatherData);
@@ -509,6 +517,10 @@ export class WeatherController {
         rag: ragContext,
         generated_at: new Date().toISOString()
       };
+
+      logger.info(
+        `[PERF] /api/ask timings: NLU: ${tNlu}ms | Weather: ${tWeather}ms | LLM: ${tLlm}ms | Total: ${Date.now() - tReqStart}ms`
+      );
 
       res.json(responsePayload);
     } catch (error) {
