@@ -227,6 +227,7 @@ export class OpenAIClientWrapper {
           ],
           generationConfig: {
             temperature: 0.3,
+            maxOutputTokens: 550,
             ...(jsonMode ? { responseMimeType: 'application/json' } : {})
           }
         };

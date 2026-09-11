@@ -295,6 +295,20 @@ export function getTimeRangeStats(
 
 export class LLMService {
   async parseNLU(question: string, locationContext?: LocationEntity | LocationInput): Promise<ParsedNLU> {
+    // 1. Instant heuristic NLU (runs in <1ms)
+    const heuristic = this.heuristicNLU(question, locationContext);
+
+    // If heuristic NLU detected a location or specific intent/date, return immediately without wasting 5-8s on an extra LLM call
+    if (
+      heuristic.locationName ||
+      heuristic.intent !== 'general_forecast' ||
+      heuristic.targetDate !== 'today' ||
+      !openAIClient.isConfigured()
+    ) {
+      return heuristic;
+    }
+
+    // 2. Fallback to LLM only for completely ambiguous queries with no keywords
     const detectedLangInfo = languageService.detect(question);
     const language = detectedLangInfo.code;
     const fullLangName = detectedLangInfo.name;
@@ -340,7 +354,7 @@ Extract JSON:
       }
     }
 
-    return this.heuristicNLU(question, locationContext);
+    return heuristic;
   }
 
   private heuristicNLU(question: string, locationContext?: LocationEntity | LocationInput): ParsedNLU {
