@@ -270,8 +270,8 @@ export class WeatherController {
         }
       }
 
-      if (!finalLocationInput && !extractedName && isRelativeQuery) {
-        logger.info(`Relative location query detected without explicit coordinates or memory. Defaulting to 'Ahmedabad'.`);
+      if (!finalLocationInput && !extractedName) {
+        logger.info(`No location provided in query or conversation memory. Defaulting to 'Ahmedabad' for instant responsive forecast.`);
         extractedName = 'Ahmedabad';
       }
 

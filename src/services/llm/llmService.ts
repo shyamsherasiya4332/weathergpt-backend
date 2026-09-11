@@ -925,14 +925,23 @@ Follow all rules of WeatherGPT system prompt.
 
     if (openAIClient.isConfigured()) {
       try {
-        const prompt = `User sent an off-topic/non-weather question: "${question}". Synthesize a polite, friendly response in ${fullLangName} (${language}) stating that you are WeatherGPT, an AI Weather Assistant created to help with weather, forecast, rain, temperature, and climate queries. Politely inform the user that you can only answer weather-related questions, and invite them to ask about the weather in any city or village. Keep it 1-2 natural sentences with friendly emojis.`;
+        const prompt = `You are WeatherGPT, a helpful, highly intelligent, multi-talented AI assistant.
+User Question: "${question}"
+Target Language: ${fullLangName} (${language})
+
+Instructions:
+1. Provide a direct, comprehensive, accurate, and friendly answer to the user's question in ${fullLangName}.
+2. Use the exact script and language (${fullLangName}) matching the user's query (Gujarati in Gujarati, Hindi in Hindi, English in English, etc.).
+3. NEVER refuse to answer or say you only answer weather questions. Be fully responsive, warm, and helpful for whatever the user asks.
+4. Keep the tone conversational, helpful, and concise with clean markdown formatting and friendly emojis.`;
+
         const res = await openAIClient.generateChatCompletion(
-          'You are WeatherGPT, a friendly AI weather assistant for India.',
+          'You are WeatherGPT, a highly responsive, helpful AI assistant.',
           prompt
         );
         if (res && res.trim()) return res.trim();
       } catch (err) {
-        logger.warn('LLM off-topic response generation failed, using fallback:', err);
+        logger.warn('LLM general response generation failed, using fallback:', err);
       }
     }
 
@@ -942,27 +951,40 @@ Follow all rules of WeatherGPT system prompt.
     const isHinglish = language === 'hinglish';
     const isMr = language === 'mr';
 
+    // Rule-based helpful fallbacks for common general queries
+    if (/who\s*(?:are|r)\s*you|તમે\s*કોણ|કોણ\s*છો|तुम\s*कौन|aap\s*kaun|who\s*made\s*you/i.test(question)) {
+      if (isGu) return `હું WeatherGPT છું, તમારો સ્માર્ટ AI આસિસ્ટન્ટ! 🌤️ હું તમને હવામાન, વરસાદ, ખેતીના પાક, વાતાવરણ તેમજ તમારા કોઈપણ સામાન્ય પ્રશ્નોના સચોટ જવાબો આપવામાં મદદ કરી શકું છું. તમે મને કોઈપણ વિષય વિશે પૂછી શકો છો! 😊`;
+      if (isHi || isHinglish) return `मैं WeatherGPT हूँ, आपका स्मार्ट AI असिस्टेंट! 🌤️ मैं आपको मौसम, बारिश, खेती-किसानी, जलवायु और आपके किसी भी सामान्य प्रश्न का सही उत्तर देने के लिए यहाँ हूँ। आप मुझसे कुछ भी पूछ सकते हैं! 😊`;
+      return `I am WeatherGPT, your smart AI Assistant! 🌤️ I can help you with live weather forecasts, rain alerts, agricultural advisories, and answer any general questions you may have. Feel free to ask me anything! 😊`;
+    }
+
+    if (/joke|જોક્સ|જોક|ચુટકુલા/i.test(question)) {
+      if (isGu) return `😄 એક મજાનો જોક:\nશિક્ષક: 'વરસાદ' અને 'પરીક્ષા' માં શું સમાનતા છે?\nવિદ્યાર્થી: બંનેની તૈયારી ગમે તેટલી કરો, છેલ્લે ધોવાઈ જ જવાય છે! 🌧️😂`;
+      if (isHi || isHinglish) return `😄 एक मज़ेदार जोक:\nटीचर: बारिश और परीक्षा में क्या समानता है?\nछात्र: सर, तैयारी चाहे कितनी भी कर लो, अंत में भीगना ही पड़ता है! 🌧️😂`;
+      return `😄 Here's a weather joke for you:\nWhy did the cloud stay home from school?\nBecause it was feeling a little under the weather! ☁️😂`;
+    }
+
     if (isPa) {
-      return `ਮੈਂ WeatherGPT ਇੱਕ ਏਆਈ ਵੈਦਰ ਅਸਿਸਟੈਂਟ ਹਾਂ। 🌤️ ਮੈਂ ਸਿਰਫ਼ ਮੌਸਮ, ਤਾਪਮਾਨ, ਮੀਂਹ ਅਤੇ ਜਲਵਾਯੂ ਨਾਲ ਸਬੰਧਤ ਸਵਾਲਾਂ ਦੇ ਜਵਾਬ ਦੇ ਸਕਦਾ ਹਾਂ। ਕਿਰਪਾ ਕਰਕੇ ਮੈਨੂੰ ਕਿਸੇ ਵੀ ਸ਼ਹਿਰ ਜਾਂ ਪਿੰਡ ਦੇ ਮੌਸਮ ਬਾਰੇ ਪੁੱਛੋ! 🙏`;
+      return `ਮੈਂ WeatherGPT ਤੁਹਾਡਾ ਏਆਈ ਅਸਿਸਟੈਂਟ ਹਾਂ। 🌤️ ਮੈਂ ਤੁਹਾਡੇ ਹਰ ਸਵਾਲ ਦਾ ਜਵਾਬ ਦੇਣ ਅਤੇ ਮੌਸਮ ਬਾਰੇ ਜਾਣਕਾਰੀ ਦੇਣ ਲਈ ਹਾਜ਼ਰ ਹਾਂ। ਕਿਰਪਾ ਕਰਕੇ ਕੋਈ ਵੀ ਸਵਾਲ ਪੁੱਛੋ! 🙏`;
     }
 
     if (isGu) {
-      return `હું WeatherGPT એક એઆઈ વેધર આસિસ્ટન્ટ છું. 🌤️ હું ફક્ત હવામાન, તાપમાન, વરસાદ અને વાતાવરણ સંબંધિત પ્રશ્નોના જવાબ આપી શકું છું. કૃપા કરીને મને ભારતના કોઈપણ શહેર કે ગામના હવામાન વિશે પૂછો! 🙏`;
+      return `હું WeatherGPT એક એઆઈ આસિસ્ટન્ટ છું. 🌤️ હું તમને હવામાનની સાથે સાથે કોઈપણ માહિતી કે પ્રશ્નનો જવાબ આપવામાં મદદ કરી શકું છું. તમે મને કોઈપણ શહેરના હવામાન કે અન્ય વિષય વિશે પૂછી શકો છો! 🙏`;
     }
 
     if (isHi) {
-      return `मैं WeatherGPT एक एआई वेदर असिस्टेंट हूँ। 🌤️ मैं केवल मौसम, तापमान, बारिश और जलवायु से जुड़े सवालों के जवाब दे सकता हूँ। कृपया मुझसे किसी भी स्थान के मौसम के बारे में पूछें! 🙏`;
+      return `मैं WeatherGPT एक एआई असिस्टेंट हूँ। 🌤️ मैं मौसम के साथ-साथ आपके किसी भी सवाल का जवाब देने में आपकी पूरी सहायता कर सकता हूँ। आप मुझसे मौसम या किसी भी विषय पर पूछ सकते हैं! 🙏`;
     }
 
     if (isHinglish) {
-      return `Main WeatherGPT ek AI Weather Assistant hoon. 🌤️ Main sirf weather, temperature, rain aur mausam se jude sawalon ke answer de sakta hoon. Kripya kisi bhi city ya village ka weather puchhein! 🙏`;
+      return `Main WeatherGPT ek AI Assistant hoon. 🌤️ Main weather ke saath saath aapke kisi bhi sawal ka answer de sakta hoon. Aap mujhse mausam ya kisi bhi topic par puchh sakte hain! 🙏`;
     }
 
     if (isMr) {
-      return `मी WeatherGPT एक AI हवामान सहाय्यक आहे. 🌤️ मी फक्त हवामान, तापमान, पाऊस आणि वातावरणाशी संबंधित प्रश्नांची उत्तरे देऊ शकतो. कृपया मला कोणत्याही शहराच्या किंवा गावाच्या हवामानाबद्दल विचारा! 🙏`;
+      return `मी WeatherGPT एक AI सहाय्यक आहे. 🌤️ मी हवामानासोबतच आपल्या कोणत्याही प्रश्नाचे उत्तर देण्यास तयार आहे. आपण मला कोणत्याही विषयावर विचारू शकता! 🙏`;
     }
 
-    return `I am WeatherGPT, an AI Weather Assistant. 🌤️ I can only assist with weather, temperature, rain forecast, and climate-related queries. Please ask me about the weather in any city or village! 🙏`;
+    return `I am WeatherGPT, an AI Assistant. 🌤️ I am here to help you with live weather forecasts, agricultural tips, and answer any questions you have. Feel free to ask! 🙏`;
   }
 
   private appendFollowupSuggestion(rawAnswer: string, language: string, question: string): string {
