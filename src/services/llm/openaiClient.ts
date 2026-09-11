@@ -115,6 +115,29 @@ export class OpenAIClientWrapper {
     return res.data;
   }
 
+  async testDirectModel(modelName: string): Promise<unknown> {
+    if (!this.geminiDirectKey) {
+      throw new Error('No Gemini key configured');
+    }
+    const cleanKey = this.geminiDirectKey.trim();
+    const cleanModel = modelName.replace(/^models\//, '');
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:generateContent?key=${encodeURIComponent(cleanKey)}`;
+    const res = await axios.post(
+      url,
+      {
+        contents: [{ role: 'user', parts: [{ text: 'Hello! Respond with: "OK: ' + cleanModel + '"' }] }]
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': cleanKey
+        },
+        timeout: 10000
+      }
+    );
+    return res.data;
+  }
+
   async generateChatCompletion(
     systemPrompt: string,
     userPrompt: string,

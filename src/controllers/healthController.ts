@@ -59,6 +59,21 @@ export class HealthController {
       });
     }
   }
+
+  async testSingleModel(req: Request, res: Response): Promise<void> {
+    const m = (req.query.m as string) || 'gemini-2.5-flash';
+    try {
+      const data = await openAIClient.testDirectModel(m);
+      res.json({ success: true, model: m, data });
+    } catch (err: unknown) {
+      let msg = err instanceof Error ? err.message : 'Model test error';
+      if (typeof err === 'object' && err !== null && 'response' in err) {
+        const resp = (err as { response?: { status?: number; data?: unknown } }).response;
+        msg = `HTTP ${resp?.status}: ${JSON.stringify(resp?.data)}`;
+      }
+      res.status(500).json({ success: false, model: m, error: msg });
+    }
+  }
 }
 
 export const healthController = new HealthController();

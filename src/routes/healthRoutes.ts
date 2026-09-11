@@ -15,4 +15,8 @@ router.get('/test-models', (req, res) => {
   healthController.testModels(req, res);
 });
 
+router.get('/test-single-model', (req, res) => {
+  healthController.testSingleModel(req, res);
+});
+
 export const healthRoutes = router;
