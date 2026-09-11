@@ -95,15 +95,16 @@ export class LanguageService {
       const gujScore = this.getGujlishScore(text);
       const hinScore = this.getHinglishScore(text);
 
-      // If user asks in Gujlish or Hinglish (even mixed with words like weather, in, at, today)
+      // If user asks in Gujlish (Gujarati words typed in English keyboard, e.g. "atyare morbi ma varsad chhe?")
+      // The user wants the answer in pure Gujarati script (ગુજરાતી લિપિમાં)!
       if (gujScore > 0 && gujScore >= hinScore && (gujScore >= engScore || gujScore >= 3)) {
-        primaryCode = 'gu'; primaryName = 'Gujarati (Gujlish)'; script = 'Latin';
+        primaryCode = 'gu'; primaryName = 'Gujarati'; script = 'Gujarati';
       } else if (hinScore > 0 && hinScore > gujScore && (hinScore >= engScore || hinScore >= 3)) {
-        primaryCode = 'hinglish'; primaryName = 'Hinglish'; script = 'Latin';
+        primaryCode = 'hi'; primaryName = 'Hindi'; script = 'Devanagari';
       } else if (gujScore > 0 && gujScore > hinScore) {
-        primaryCode = 'gu'; primaryName = 'Gujarati (Gujlish)'; script = 'Latin';
+        primaryCode = 'gu'; primaryName = 'Gujarati'; script = 'Gujarati';
       } else if (hinScore > 0 && hinScore > gujScore) {
-        primaryCode = 'hinglish'; primaryName = 'Hinglish'; script = 'Latin';
+        primaryCode = 'hi'; primaryName = 'Hindi'; script = 'Devanagari';
       } else {
         primaryCode = 'en'; primaryName = 'English'; script = 'Latin';
       }
@@ -128,12 +129,12 @@ export class LanguageService {
 
   public getLanguageName(code: string): string {
     const names: Record<string, string> = {
-      en: 'English', hi: 'Hindi', gu: 'Gujarati (or Gujlish if asked in Roman English script)',
+      en: 'English', hi: 'Hindi', gu: 'Gujarati',
       bn: 'Bengali', ta: 'Tamil', te: 'Telugu',
       kn: 'Kannada', ml: 'Malayalam', pa: 'Punjabi', or: 'Odia', as: 'Assamese', mr: 'Marathi',
       ur: 'Urdu', sa: 'Sanskrit', kok: 'Konkani', mai: 'Maithili', sd: 'Sindhi', ks: 'Kashmiri',
-      mni: 'Manipuri', brx: 'Bodo', doi: 'Dogri', hinglish: 'Hinglish (Hindi in Roman script)',
-      gujlish: 'Gujlish (Gujarati in Roman script)'
+      mni: 'Manipuri', brx: 'Bodo', doi: 'Dogri', hinglish: 'Hindi',
+      gujlish: 'Gujarati'
     };
     return names[code.toLowerCase()] || code;
   }
