@@ -39,7 +39,13 @@ const STOP_WORDS = new Set([
   'और', 'या', 'पर', 'लिए', 'बताओ', 'बताइए', 'मुझे', 'इस', 'उस', 'तो', 'भी', 'होता', 'होती',
   // Gujarati
   'શું', 'કરો', 'કરવું', 'માં', 'થી', 'ને', 'નો', 'ની', 'નું', 'ના', 'છે', 'હતો', 'હતી', 'અને',
-  'કે', 'પર', 'માટે', 'કહો', 'જણાવો', 'મને', 'આ', 'તે'
+  'કે', 'પર', 'માટે', 'કહો', 'જણાવો', 'મને', 'આ', 'તે',
+  // Generic weather terms (prevent standard weather queries from triggering agricultural/disaster chunks)
+  'weather', 'weathr', 'forecast', 'climate', 'temperature', 'temp', 'city', 'location', 'live', 'report',
+  'today', 'tomorrow', 'yesterday', 'day', 'night', 'morning', 'evening', 'now', 'right', 'current',
+  'hawaaman', 'mausam', 'tapman', 'kevi', 'hase', 'kaisa', 'hoga', 'hai', 'batao',
+  'હવામાન', 'તાપમાન', 'સ્થળ', 'આજે', 'કાલે', 'શહેર', 'ગામ', 'અહેવાલ', 'કેવું', 'હશે',
+  'मौसम', 'तापमान', 'आज', 'कल', 'शहर', 'गाँव', 'स्थान', 'हाल', 'कैसा', 'रहेगा'
 ]);
 
 /** Normalize and tokenize text into words, preserving Indic vowel marks (\p{M}) */
@@ -242,11 +248,11 @@ class RAGService {
         }
       }
 
-      if (rawScore >= minScore && (matchedKeywords.length > 0 || contentScore > 0)) {
+      if (rawScore >= minScore && matchedKeywords.length > 0) {
         scored.push({
           chunk,
           score: Math.round(rawScore * 1000) / 1000,
-          matchedKeywords: matchedKeywords.length > 0 ? matchedKeywords : ['content_match'],
+          matchedKeywords,
           weatherBoost: hasWeatherBoost
         });
       }
@@ -293,8 +299,11 @@ class RAGService {
       return baseAnswer;
     }
 
-    // Pick the most relevant document
+    // Only augment if the top document has a strong relevance score (>= 0.2)
     const topDoc = ragContext.documents[0];
+    if (topDoc.relevanceScore < 0.2) {
+      return baseAnswer;
+    }
 
     // Append a knowledge context section
     const separator = '\n\n';

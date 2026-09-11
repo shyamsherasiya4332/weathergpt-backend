@@ -23,28 +23,10 @@ export class WeatherService {
   ): Promise<{ location?: ResolvedLocation; weatherData?: WeatherData; error?: string; isAmbiguous?: boolean; isCached?: boolean }> {
     let resolvedLocation: ResolvedLocation | undefined;
 
-    // 1. Coordinates directly provided
-    if (locationInput?.latitude !== undefined && locationInput?.longitude !== undefined) {
-      if (locationInput.name) {
-        resolvedLocation = {
-          name: locationInput.name,
-          latitude: locationInput.latitude,
-          longitude: locationInput.longitude,
-          timezone: 'Asia/Kolkata' // Default until reverse geocode or API enriches it
-        };
-      } else {
-        resolvedLocation = await geocodingService.reverseGeocode(
-          locationInput.latitude,
-          locationInput.longitude
-        );
-      }
-    } else {
-      // 2. Landmark or City name passed or extracted
-      const nameToSearch = locationInput?.name || extractedLocationName;
-      if (!nameToSearch) {
-        return { error: 'LOCATION_MISSING' };
-      }
+    // 1. If user explicitly asked about a specific location in their question, that takes HIGHEST priority!
+    const nameToSearch = extractedLocationName?.trim() || locationInput?.name?.trim();
 
+    if (nameToSearch) {
       // Check if place is a known landmark (e.g. Statue of Unity, Somnath Temple, Gir Forest)
       const landmarkLocation = matchLandmark(nameToSearch);
       if (landmarkLocation) {
@@ -62,6 +44,23 @@ export class WeatherService {
 
         resolvedLocation = geoResult.location;
       }
+    } else if (locationInput?.latitude !== undefined && locationInput?.longitude !== undefined) {
+      // 2. No specific city name asked, fallback to GPS coordinates (e.g. browser location or relative query)
+      if (locationInput.name) {
+        resolvedLocation = {
+          name: locationInput.name,
+          latitude: locationInput.latitude,
+          longitude: locationInput.longitude,
+          timezone: 'Asia/Kolkata'
+        };
+      } else {
+        resolvedLocation = await geocodingService.reverseGeocode(
+          locationInput.latitude,
+          locationInput.longitude
+        );
+      }
+    } else {
+      return { error: 'LOCATION_MISSING' };
     }
 
     try {

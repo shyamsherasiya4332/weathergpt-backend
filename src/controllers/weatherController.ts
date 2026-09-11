@@ -248,11 +248,19 @@ export class WeatherController {
         nlu.specificDateStr = festivalMatch.dateRange.start;
       }
 
-      // 4. Resolve Location (Explicit > Question > Conversation Memory > Relative Query Fallback)
+      // 4. Resolve Location (Explicit Question City > GPS Coordinates > Conversation Memory > Relative Query Fallback)
       let finalLocationInput = locationInput;
       let extractedName = nlu.locationName;
 
-      const isRelativeQuery = /my\s*location|mara\s*location|mare\s*location|near\s*me|here|uper|per|par|અહીં|અહીંનું|મારી\s*જગ્યા|મેરે\s*પાસ|મેરે\s*શહર/i.test(cleanQuestion);
+      // Word boundary regex so words like 'temperature' don't falsely trigger 'per'
+      const isRelativeQuery = /\b(?:my\s*location|mara\s*location|mare\s*location|near\s*me|here|uper|per|par)\b|અહીં|અહીંનું|મારી\s*જગ્યા|મેરે\s*પાસ|મેરે\s*શહર/i.test(cleanQuestion);
+
+      // If user asked about a specific city in the question, do NOT let ambient browser GPS coordinates override it!
+      if (extractedName && extractedName.trim() !== '') {
+        if (!finalLocationInput?.name || finalLocationInput.name.toLowerCase() !== extractedName.toLowerCase()) {
+          finalLocationInput = undefined;
+        }
+      }
 
       if (!finalLocationInput && !extractedName && convContext?.locationName) {
         logger.info(`Using conversation memory location '${convContext.locationName}' for follow-up query.`);

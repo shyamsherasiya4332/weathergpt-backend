@@ -122,42 +122,49 @@ export class OpenMeteoGeocodingProvider implements IGeocodingProvider {
     if (cached) return cached;
 
     try {
-      // Try fetching place details near coordinates
-      const response = await axios.get<{ results?: OpenMeteoGeocodingItem[] }>(
-        `${env.GEOCODING_API_BASE_URL}/search`,
-        {
-          params: {
-            latitude: lat,
-            longitude: lon,
-            count: 1,
-            language: 'en',
-            format: 'json'
-          },
-          timeout: 6000
-        }
-      );
+      // Use BigDataCloud reverse geocoding client API (free, reliable, high accuracy for India)
+      const response = await axios.get<{
+        city?: string;
+        locality?: string;
+        principalSubdivision?: string;
+        countryName?: string;
+      }>('https://api.bigdatacloud.net/data/reverse-geocode-client', {
+        params: {
+          latitude: lat,
+          longitude: lon,
+          localityLanguage: 'en'
+        },
+        timeout: 5000
+      });
 
-      const item = response.data.results?.[0];
-      const resolved: ResolvedLocation = {
-        name: item?.name || `Location (${lat.toFixed(2)}, ${lon.toFixed(2)})`,
-        latitude: lat,
-        longitude: lon,
-        country: item?.country,
-        state: item?.admin1,
-        timezone: item?.timezone || 'Asia/Kolkata'
-      };
+      const data = response.data;
+      const placeName = data.city || data.locality || data.principalSubdivision;
 
-      cache.set(cacheKey, resolved, env.CACHE_TTL_GEOCODING);
-      return resolved;
-    } catch {
-      // Direct fallback
-      return {
-        name: `Coordinates (${lat.toFixed(2)}, ${lon.toFixed(2)})`,
-        latitude: lat,
-        longitude: lon,
-        timezone: 'Asia/Kolkata'
-      };
+      if (placeName && placeName.trim() !== '') {
+        const resolved: ResolvedLocation = {
+          name: placeName,
+          latitude: lat,
+          longitude: lon,
+          country: data.countryName || 'India',
+          state: data.principalSubdivision,
+          timezone: 'Asia/Kolkata'
+        };
+
+        cache.set(cacheKey, resolved, env.CACHE_TTL_GEOCODING);
+        return resolved;
+      }
+    } catch (err) {
+      logger.warn(`Reverse geocode via BigDataCloud failed for ${lat},${lon}: ${err}`);
     }
+
+    // Direct fallback if API unavailable
+    return {
+      name: `Location near (${lat.toFixed(2)}, ${lon.toFixed(2)})`,
+      latitude: lat,
+      longitude: lon,
+      country: 'India',
+      timezone: 'Asia/Kolkata'
+    };
   }
 }
 
