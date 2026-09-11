@@ -37,7 +37,7 @@ export class OpenAIClientWrapper {
     if (effectiveGeminiKey) {
       this.geminiDirectKey = effectiveGeminiKey;
       this.providerName = 'gemini';
-      this.modelName = env.LLM_MODEL && !env.LLM_MODEL.startsWith('gpt') ? env.LLM_MODEL : 'gemini-1.5-flash';
+      this.modelName = env.LLM_MODEL && !env.LLM_MODEL.startsWith('gpt') ? env.LLM_MODEL : 'gemini-2.5-flash';
       
       try {
         this.client = new OpenAI({
@@ -179,9 +179,14 @@ export class OpenAIClientWrapper {
     userPrompt: string,
     jsonMode: boolean
   ): Promise<string> {
-    const modelsToTry = [this.modelName, 'gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash-8b', 'gemini-1.5-pro'].filter(
-      (v, idx, arr) => arr.indexOf(v) === idx && v.startsWith('gemini')
-    );
+    const modelsToTry = [
+      this.modelName,
+      'gemini-2.5-flash',
+      'gemini-2.5-flash-lite',
+      'gemini-flash-latest',
+      'gemini-2.5-pro',
+      'gemini-pro-latest'
+    ].filter((v, idx, arr) => arr.indexOf(v) === idx && v.startsWith('gemini'));
 
     let lastErr: Error | null = null;
     const cleanKey = apiKey.trim();
