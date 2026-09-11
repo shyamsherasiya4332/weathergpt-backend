@@ -111,7 +111,8 @@ export class OpenAIClientWrapper {
       throw new Error('OPENAI_CLIENT_NOT_CONFIGURED');
     }
 
-    let lastError: Error | null = null;
+    let geminiNativeError: string | null = null;
+    let openAiError: string | null = null;
 
     // 1. If Gemini direct key is available, try native Google Gemini REST API first!
     if (this.geminiDirectKey) {
@@ -123,7 +124,7 @@ export class OpenAIClientWrapper {
       } catch (geminiErr: unknown) {
         const msg = geminiErr instanceof Error ? geminiErr.message : 'Gemini native REST error';
         logger.warn(`Gemini native REST failed, trying OpenAI adapter fallback: ${msg}`);
-        lastError = geminiErr instanceof Error ? geminiErr : new Error(msg);
+        geminiNativeError = msg;
       }
     }
 
@@ -147,11 +148,16 @@ export class OpenAIClientWrapper {
       } catch (openAiErr: unknown) {
         const msg = openAiErr instanceof Error ? openAiErr.message : 'LLM API error';
         logger.error(`LLM SDK completion failed (${this.providerName}/${this.modelName}): ${msg}`);
-        lastError = openAiErr instanceof Error ? openAiErr : new Error(msg);
+        openAiError = msg;
       }
     }
 
-    throw lastError || new Error('LLM completion failed across all providers.');
+    const fullErr = [
+      geminiNativeError ? `Native Gemini error: ${geminiNativeError}` : null,
+      openAiError ? `OpenAI SDK error: ${openAiError}` : null
+    ].filter(Boolean).join(' | ');
+
+    throw new Error(fullErr || 'LLM completion failed across all providers.');
   }
 
   private async callGeminiNative(
