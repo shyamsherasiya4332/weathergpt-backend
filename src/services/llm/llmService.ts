@@ -363,9 +363,9 @@ Extract JSON:
     let intent: ParsedNLU['intent'] = 'general_forecast';
     if (/^(?:hello|hi|hey|helo|kem\s*cho|namaste|namaskar|halo|ram\s*ram|su\s*prabhat|good\s*morning|good\s*evening|good\s*afternoon|good\s*night|pranam|jay\s*shree\s*krishna|har\s*har\s*mahadev|kaisa\s*ho|નમસ્તે|નમસ્કાર|કેમ\s*છો|હલો|પ્રણામ|હાય|હેલો|હરિ\s*ઓમ)\b/i.test(question.trim())) {
       intent = 'greeting';
-    } else if (/garmi|ગરમી|ગરીમી|bafaro|બફારો|thandi|ઠંડી|તાપમાન|तापमान|गर्मी|ठंड|temp|temperature|heat|hot|cold|warm|degree|ડિગ્રી/i.test(question)) {
+    } else if (/garmi|garmy|ગરમી|ગરીમી|bafaro|બફારો|thandi|ઠંડી|તાપમાન|तापमान|गर्मी|ठंड|temp|temperature|heat|hot|cold|warm|degree|ડિગ્રી/i.test(question)) {
       intent = 'temperature';
-    } else if (/rain|varsad|बारिश|મழை|મજ્હા|મળ|પાણી|વરસાદ|chances of rain|umbrella/i.test(question)) {
+    } else if (/rain|varsad|varsat|varshad|barsad|barsat|barish|baarish|बारिश|વરસાદ|ઝાપટાં|બુંદાબુંદી|chances of rain|umbrella/i.test(question)) {
       intent = 'rain_forecast';
     } else if (/right now|currently|current|હાલ|અત્યારે|अभी/i.test(question)) {
       intent = 'current_weather';
@@ -378,7 +378,7 @@ Extract JSON:
       targetDate = 'day_after_tomorrow';
     } else if (/tomorrow|kale|કાલે|કાલ|कल|kal\b|kalnu|kalni|kalno|kalna|kal\s*nu|kal\s*ni|kal\s*no|kal\s*na/i.test(question)) {
       targetDate = 'tomorrow';
-    } else if (/today|aaje|આજે|આજ|आज|aaj\b|aajnu|aajni|aajno|aajna|aaj\s*nu|aaj\s*ni|aaj\s*no|aaj\s*na/i.test(question)) {
+    } else if (/today|aje|aaje|આજે|આજ|आज|aaj\b|aajnu|aajni|aajno|aajna|aaj\s*nu|aaj\s*ni|aaj\s*no|aaj\s*na/i.test(question)) {
       targetDate = 'today';
     }
 
@@ -474,7 +474,14 @@ Extract JSON:
       'ગાંધીનગર': 'Gandhinagar', 'ગાંધીનગરમાં': 'Gandhinagar', 'ગાંધીનગરનું': 'Gandhinagar',
       'દિલ્હી': 'Delhi', 'મુંબઈ': 'Mumbai', 'પૂણે': 'Pune',
       'જયપુર': 'Jaipur', 'કોલકાતા': 'Kolkata', 'ચેન્નાઈ': 'Chennai',
-      'બેંગ્લોર': 'Bangalore', 'હૈદરાબાદ': 'Hyderabad'
+      'બેંગ્લોર': 'Bangalore', 'હૈદરાબાદ': 'Hyderabad',
+      
+      // Typos & Aliases
+      'amdavad': 'Ahmedabad', 'ahemdabad': 'Ahmedabad', 'baroda': 'Vadodara', 'vadodra': 'Vadodara',
+      'morbii': 'Morbi', 'morby': 'Morbi', 'bombay': 'Mumbai', 'poona': 'Pune',
+      'banaras': 'Varanasi', 'calcutta': 'Kolkata', 'madras': 'Chennai',
+      'bhavnagr': 'Bhavnagar', 'jamnagr': 'Jamnagar', 'gandhinagr': 'Gandhinagar',
+      'rajkott': 'Rajkot', 'suratt': 'Surat'
     };
 
     // Sort entries by length descending so longer compound names match before shorter subsets
@@ -494,13 +501,15 @@ Extract JSON:
       }
     }
 
+    const nonCityWords = /^(?:india|bharat|desh|country|gujarat|state|rajya|duniya|world|aaje|kale|badha|badhu|kai|kya|kaha|kon|shu|kone|koni|aapda|apda|mara|tamara|badhe|hawa|mausam|vatavaran|varsad|barish|tapman|garmi|thandi|today|tomorrow|yesterday|rain|temp|weather)$/i;
+
     if (!locationName) {
       // Suffix match for Indic inflections (Gujarati, Hindi, Marathi)
       const suffixMatch = question.match(/([A-Za-z\u0A80-\u0AFF\u0900-\u097F]{2,30})\s*(?:मध्ये|मधे|्यात|ात|ત|તમાં|માં|મા|में|से|કો|को|નું|ની|નો|ના)(?:\s|[.,?!]|$|\b)/i);
       if (suffixMatch) {
         let candidate = suffixMatch[1].trim();
         candidate = candidate.replace(/^(?:kale|aaje|today|tomorrow|kal|shyam|sanje|savare|morning|evening|night|garmi|thandi|aaj|aata)\s*/i, '').trim();
-        if (candidate && candidate.length >= 2) {
+        if (candidate && candidate.length >= 2 && !nonCityWords.test(candidate)) {
           locationName = candidate;
         }
       }
@@ -512,7 +521,7 @@ Extract JSON:
       if (genitiveMatch) {
         let candidate = genitiveMatch[1].trim();
         candidate = candidate.replace(/^(?:kale|aaje|today|tomorrow|kal|shyam|sanje|savare|morning|evening|night|garmi|thandi)\s+/i, '').trim();
-        if (candidate && candidate.length >= 2) {
+        if (candidate && candidate.length >= 2 && !nonCityWords.test(candidate)) {
           locationName = candidate;
         }
       }
@@ -523,7 +532,7 @@ Extract JSON:
       if (postMatch) {
         let candidate = postMatch[1].trim();
         candidate = candidate.replace(/^(?:kale|aaje|today|tomorrow|kal|shyam|sanje|savare|morning|evening|night|garmi|thandi)\s+/i, '').trim();
-        if (candidate) {
+        if (candidate && !nonCityWords.test(candidate)) {
           locationName = candidate;
         }
       }
@@ -534,9 +543,9 @@ Extract JSON:
       const inMatch = question.match(/\b(?:in|at|for|near|of|around)\s+([A-Za-z\u0A80-\u0AFF\u0900-\u097F\s]{2,30})/i);
       if (inMatch) {
         let candidate = inMatch[1].trim();
-        candidate = candidate.split(/\s+(?:today|tomorrow|tonight|rain|varsad|hase|padse|ke|nai|hoga|kya|garmi|thandi)\b/i)[0].trim();
+        candidate = candidate.split(/\s+(?:today|tomorrow|tonight|rain|varsad|varsat|hase|hashe|chhe|che|padse|ke|nai|hoga|kya|garmi|thandi)\b/i)[0].trim();
         candidate = candidate.replace(/[.,?!]+$/, '').trim();
-        if (candidate && candidate.length >= 2) {
+        if (candidate && candidate.length >= 2 && !nonCityWords.test(candidate)) {
           locationName = candidate;
         }
       }
@@ -545,7 +554,7 @@ Extract JSON:
     if (locationName) {
       locationName = locationName
         .replace(/\b(?:my\s*location|mara\s*location|mare\s*location|near\s*me|my\s*city|here|અહીં|અહીંનું|મારી\s*જગ્યા|મેરે\s*પાસ|મેરે\s*શહર)\b/gi, '')
-        .replace(/\b(?:varsad|rain|weather|forecast|hoga|hogi|padse|hase|ke|nai|kya|aaje|kale|today|tomorrow|shyam|sanje|savare|temp|taapman|garmi|thandi|bafaro|kase|aahe|hawaman)\b/gi, '')
+        .replace(/\b(?:varsad|varsat|varshad|barsad|barsat|rain|weather|forecast|hoga|hogi|padse|hase|hashe|chhe|che|ke|nai|kya|aaje|aje|kale|today|tomorrow|shyam|sanje|savare|temp|taapman|garmi|garmy|thandi|bafaro|kase|aahe|hawaman)\b/gi, '')
         .replace(/[.,?!]+$/, '')
         .trim();
 
@@ -582,6 +591,52 @@ Extract JSON:
       language,
       confidence: 0.85
     };
+  }
+
+  isNationalOrComparativeWeatherQuery(question: string): boolean {
+    const q = question.toLowerCase();
+    
+    // Check for comparative or extremes across regions
+    const isComparative = /vadhare varsad|sauthi vadhu varsad|highest rain|sabse jyada barish|hottest place|sabse garam|coldest place|sabse thandi|kya jagyaye|kahi jagyaye|kai jagyaye/i.test(q);
+    
+    // Check if it's asking about India, Gujarat, World, etc. broadly
+    const isBroadRegion = /\b(?:india|bharat|gujarat|desh|country|world|duniya)\b/i.test(q);
+
+    // Check for meteorological phenomena (cyclone, monsoon, mavthu, etc.)
+    const isPhenomena = /mavthu|cyclone|monsoon|el nino|vavazodu|toofan|bhookamp|earthquake/i.test(q);
+
+    return (isComparative && isBroadRegion) || isPhenomena;
+  }
+
+  async generateNationalOrComparativeAnswer(question: string, language: string): Promise<string> {
+    const systemPrompt = `You are a highly intelligent meteorologist representing the India Meteorological Department (IMD) and MoES.
+You are answering a question about national weather, climate patterns, or comparative extremes in India.
+Answer directly, accurately, and naturally. DO NOT invent false numbers.
+Focus on actual meteorological patterns (e.g. highest rainfall happens in Meghalaya/Mawsynram and Western Ghats; hottest places in Rajasthan, etc.).
+If they ask about current cyclones or monsoon progression, provide a generic but accurate meteorological overview.
+IMPORTANT: Reply STRICTLY in the requested language.
+If language is 'gu' or Gujarati, use pure Gujarati script. If Hindi, use pure Devanagari.`;
+
+    const userPrompt = `Question: "${question}"\nRequested Language: ${language}\nPlease answer clearly and concisely.`;
+
+    if (openAIClient.isConfigured()) {
+      try {
+        const answer = await openAIClient.generateChatCompletion(systemPrompt, userPrompt);
+        if (answer && answer.trim().length > 0) {
+          return answer.trim();
+        }
+      } catch (err) {
+        logger.warn('LLM national answer generation failed, using fallback:', err);
+      }
+    }
+
+    // Fallback based on language
+    if (language === 'gu' || /[\u0A80-\u0AFF]/.test(question)) {
+      return "ભારતમાં સૌથી વધુ વરસાદ સામાન્ય રીતે મેઘાલય (મોસીનરામ, ચેરાપુંજી) અને પશ્ચિમ ઘાટ (કેરળ, કોંકણ, કર્ણાટક) માં પડે છે. જો તમને કોઈ ચોક્કસ શહેર વિશે જાણવું હોય, તો કૃપા કરીને તે શહેરનું નામ આપો.";
+    } else if (language === 'hi' || /[\u0900-\u097F]/.test(question)) {
+      return "भारत में सबसे अधिक बारिश आमतौर पर मेघालय (मावसिनराम, चेरापूंजी) और पश्चिमी घाट (केरल, कोंकण, तटीय कर्नाटक) में होती है। यदि आप किसी विशिष्ट शहर के बारे में जानना चाहते हैं, तो कृपया उसका नाम बताएं।";
+    }
+    return "In India, the highest rainfall typically occurs in Meghalaya (Mawsynram, Cherrapunji) and the Western Ghats (Kerala, Konkan, Coastal Karnataka). If you want to know about a specific city, please provide its name.";
   }
 
   async generateAnswer(

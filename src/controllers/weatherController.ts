@@ -239,6 +239,38 @@ export class WeatherController {
         return;
       }
 
+      // Check for National / Comparative queries (e.g. "india ma kai jagyaye vadhare varsad chhe aje")
+      if (llmService.isNationalOrComparativeWeatherQuery(cleanQuestion)) {
+        logger.info(`Matched national/comparative query: "${cleanQuestion}"`);
+        const natAnswer = await llmService.generateNationalOrComparativeAnswer(cleanQuestion, nlu.language);
+        res.json({
+          success: true,
+          answer: natAnswer,
+          language: nlu.language,
+          conversationId: convContext?.id,
+          location: {
+            name: 'India',
+            country: 'India',
+            state: 'National Meteorological Overview',
+            latitude: 20.59,
+            longitude: 78.96,
+            timezone: 'Asia/Kolkata'
+          },
+          weather: {
+            temperature: 0,
+            apparentTemperature: 0,
+            condition: 'Clear',
+            rain_probability: 0,
+            rain_amount_mm: 0,
+            humidity: 0,
+            windSpeed: 0,
+            uvIndex: 0
+          },
+          generated_at: new Date().toISOString()
+        });
+        return;
+      }
+
       // Check Festival / Event mode
       const festivalMatch = matchFestival(cleanQuestion);
       if (festivalMatch) {
