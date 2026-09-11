@@ -42,7 +42,7 @@ export class OpenAIClientWrapper {
       try {
         this.client = new OpenAI({
           apiKey: effectiveGeminiKey,
-          baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/'
+          baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai'
         });
         logger.info(`Google Gemini Client initialized with model: ${this.modelName}`);
       } catch (err) {
@@ -160,15 +160,16 @@ export class OpenAIClientWrapper {
     userPrompt: string,
     jsonMode: boolean
   ): Promise<string> {
-    const modelsToTry = [this.modelName, 'gemini-1.5-flash', 'gemini-1.5-flash-latest', 'gemini-2.0-flash', 'gemini-1.5-pro'].filter(
+    const modelsToTry = [this.modelName, 'gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash-8b', 'gemini-1.5-pro'].filter(
       (v, idx, arr) => arr.indexOf(v) === idx && v.startsWith('gemini')
     );
 
     let lastErr: Error | null = null;
+    const cleanKey = apiKey.trim();
 
     for (const model of modelsToTry) {
       try {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(cleanKey)}`;
         const fullPrompt = systemPrompt ? `${systemPrompt}\n\n${userPrompt}` : userPrompt;
         
         const payload: Record<string, unknown> = {
@@ -193,7 +194,7 @@ export class OpenAIClientWrapper {
         }>(url, payload, {
           headers: {
             'Content-Type': 'application/json',
-            'x-goog-api-key': apiKey
+            'x-goog-api-key': cleanKey
           },
           timeout: 15000
         });
@@ -203,8 +204,15 @@ export class OpenAIClientWrapper {
           return answer;
         }
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : 'Gemini error';
-        lastErr = err instanceof Error ? err : new Error(msg);
+        let msg = 'Gemini error';
+        if (axios.isAxiosError(err)) {
+          const status = err.response?.status;
+          const data = JSON.stringify(err.response?.data || {});
+          msg = `HTTP ${status}: ${data}`;
+        } else if (err instanceof Error) {
+          msg = err.message;
+        }
+        lastErr = new Error(`Gemini ${model} failed: ${msg}`);
         logger.warn(`Gemini model ${model} failed, trying next: ${msg}`);
       }
     }
