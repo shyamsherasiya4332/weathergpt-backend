@@ -231,7 +231,7 @@ export class OpenAIClientWrapper {
           ],
           generationConfig: {
             temperature: 0.2,
-            maxOutputTokens: 120,
+            maxOutputTokens: 220,
             topP: 0.8,
             topK: 20,
             thinkingConfig: {
@@ -273,7 +273,7 @@ export class OpenAIClientWrapper {
               contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
               generationConfig: {
                 temperature: 0.2,
-                maxOutputTokens: 120,
+                maxOutputTokens: 220,
                 topP: 0.8,
                 topK: 20,
                 ...(jsonMode ? { responseMimeType: 'application/json' } : {})
