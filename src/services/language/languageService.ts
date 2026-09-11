@@ -95,15 +95,15 @@ export class LanguageService {
       const gujScore = this.getGujlishScore(text);
       const hinScore = this.getHinglishScore(text);
 
-      // If English words clearly dominate or there are no strong Hinglish/Gujlish words, it is English!
-      if (hinScore > gujScore && hinScore > engScore) {
+      // If user asks in Gujlish or Hinglish (even mixed with words like weather, in, at, today)
+      if (gujScore > 0 && gujScore >= hinScore && (gujScore >= engScore || gujScore >= 3)) {
+        primaryCode = 'gu'; primaryName = 'Gujarati (Gujlish)'; script = 'Latin';
+      } else if (hinScore > 0 && hinScore > gujScore && (hinScore >= engScore || hinScore >= 3)) {
         primaryCode = 'hinglish'; primaryName = 'Hinglish'; script = 'Latin';
-      } else if (gujScore > hinScore && gujScore > engScore) {
-        primaryCode = 'gu'; primaryName = 'Gujarati'; script = 'Latin';
-      } else if (hinScore > 0 && hinScore > gujScore && engScore === 0) {
+      } else if (gujScore > 0 && gujScore > hinScore) {
+        primaryCode = 'gu'; primaryName = 'Gujarati (Gujlish)'; script = 'Latin';
+      } else if (hinScore > 0 && hinScore > gujScore) {
         primaryCode = 'hinglish'; primaryName = 'Hinglish'; script = 'Latin';
-      } else if (gujScore > 0 && gujScore > hinScore && engScore === 0) {
-        primaryCode = 'gu'; primaryName = 'Gujarati'; script = 'Latin';
       } else {
         primaryCode = 'en'; primaryName = 'English'; script = 'Latin';
       }
@@ -128,10 +128,12 @@ export class LanguageService {
 
   public getLanguageName(code: string): string {
     const names: Record<string, string> = {
-      en: 'English', hi: 'Hindi', gu: 'Gujarati', bn: 'Bengali', ta: 'Tamil', te: 'Telugu',
+      en: 'English', hi: 'Hindi', gu: 'Gujarati (or Gujlish if asked in Roman English script)',
+      bn: 'Bengali', ta: 'Tamil', te: 'Telugu',
       kn: 'Kannada', ml: 'Malayalam', pa: 'Punjabi', or: 'Odia', as: 'Assamese', mr: 'Marathi',
       ur: 'Urdu', sa: 'Sanskrit', kok: 'Konkani', mai: 'Maithili', sd: 'Sindhi', ks: 'Kashmiri',
-      mni: 'Manipuri', brx: 'Bodo', doi: 'Dogri', hinglish: 'Hinglish (Hindi in Roman script)'
+      mni: 'Manipuri', brx: 'Bodo', doi: 'Dogri', hinglish: 'Hinglish (Hindi in Roman script)',
+      gujlish: 'Gujlish (Gujarati in Roman script)'
     };
     return names[code.toLowerCase()] || code;
   }
@@ -203,12 +205,17 @@ export class LanguageService {
       'varsad', 'padse', 'hase', 'kevi', 'kevo', 'kevu', 'chhe', 'bapore', 'savare', 'sanje', 'aaje',
       'vatavaran', 'ketlu', 'ketli', 'ketla', 'kem', 'cho', 'weatherkevu', 'puchhu', 'puchhune',
       'joiae', 'aapu', 'aapi', 'thase', 'thashe', 'nakhine', 'toy', 'karyu', 'karyo', 'pelethi',
-      'tapman', 'hawaaman'
+      'tapman', 'hawaaman', 'tamaru', 'tamaro', 'tamari', 'maru', 'maro', 'mari', 'apdu', 'apda',
+      'kemcho', 'kyare', 'kyathi', 'kone', 'kashu', 'nathi', 'haju', 'barishchhe', 'bapor', 'sanjo',
+      'raat', 'rate', 'kaho', 'bato', 'havaman', 'aavse', 'aavshe', 'rehshe', 'rehse', 'rehvano',
+      'rehvani', 'javanu', 'javay', 'karvu', 'karshe', 'karse'
     ];
     const commonGujlish = [
-      'che', 'nai', 'paramdivas', 'tamari', 'halo',
+      'che', 'nai', 'paramdivas', 'halo', 'su', 'shu',
       'tyare', 'ema', 'kaik', 'lidhe', 'vandho', 'avto', 'hoi',
-      'apde', 'badhu', 'dye', 'tena', 'kero'
+      'apde', 'badhu', 'dye', 'tena', 'kero', 'kale', 'kaley',
+      'parso', 'divas', 'divase', 'saathe', 'saathei', 'mate', 'maate',
+      'thodu', 'ghano', 'ghani', 'ghanu', 'pan', 'pn'
     ];
 
     const words = text.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/);
@@ -229,10 +236,10 @@ export class LanguageService {
       }
     }
 
-    if (uniqueCount === 0 && commonCount < 2) {
+    if (uniqueCount === 0 && commonCount < 1) {
       return 0;
     }
-    return uniqueCount * 3 + commonCount;
+    return uniqueCount * 4 + commonCount * 2;
   }
   
   private getHinglishScore(text: string): number {

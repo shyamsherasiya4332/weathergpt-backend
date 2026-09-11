@@ -586,11 +586,12 @@ Extract JSON:
 User Question: "${question}"
 Detected Language: ${fullLangName} (Code: ${nlu.language})
 CRITICAL LANGUAGE REQUIREMENT: You MUST synthesize your response strictly in the EXACT SAME language and script as the user query (${fullLangName}).
-- If the user asked in English, reply in natural, fluent English. NEVER reply in Hindi or Gujarati when the question is in English!
-- If the user asked in Gujarati, reply in Gujarati.
+- If the user asked in Gujlish (Gujarati words typed in English/Latin letters, e.g. "aaje morbi ma varsad padse ke nahi?", "kevu vatavaran rehse?"), reply in Gujlish (Gujarati written using natural Roman/English alphabet, e.g. "Aaje Morbi ma vatavaran mukhya tave saaf rehse...") OR natural Gujarati.
+- If the user asked in pure English (e.g. "what is the weather in Morbi?"), reply in natural, fluent English. NEVER reply in Hindi or Gujarati when the question is in English!
+- If the user asked in Gujarati script (ગુજરાતી), reply strictly in Gujarati script.
 - If in Marathi, reply in Marathi.
 - If in Hindi, reply in Hindi.
-- If in Hinglish or Gujlish (Roman script), reply in Hinglish/Gujlish using Roman script.
+- If in Hinglish (Roman script), reply in Hinglish using Roman script.
 
 User Intent Focus: ${nlu.intent}
 Specific Question Guidance: Answer the user's EXACT question directly in the very first sentence. For example:
