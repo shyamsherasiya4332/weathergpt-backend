@@ -647,9 +647,9 @@ Follow all rules of WeatherGPT system prompt.
     const isGujarati =
       nlu.language === 'gu' ||
       /[\u0A80-\u0AFF]/.test(question) ||
-      /\b(?:kale|aaje|varsad|padse|hase|nai|ke|sanje|savare|bapore|ma|mein|garmi|thandi)\b/i.test(question);
-    const isMarathi = !isGujarati && (nlu.language === 'mr' || (/[\u0900-\u097F]/.test(question) && /कसे|हवामान|आहे|आज|मुंबई|पुणे|नागपूर|कसा|कशी|झाले|काय|નાही|मध्ये/i.test(question)));
-    const isHindi = !isGujarati && !isMarathi && (nlu.language === 'hi' || nlu.language === 'hinglish');
+      /\b(?:kale|aaje|varsad|padse|hase|nai|ke|sanje|savare|bapore|ma|mein|garmi|thandi|che|chhe|kevu|kevi|kevo|ketlu|ketli|ketla|tapman|vatavaran|thase|thashe|nu|ni|no|na|su|kem|cho|halo|mara|mare|tamare|hovanu)\b/i.test(question);
+    const isMarathi = !isGujarati && (nlu.language === 'mr' || (/[\u0900-\u097F]/.test(question) && /कसे|हवामान|आहे|आज|मुंबई|पुणे|नागपूर|कसा|कशी|झाले|काय|નાહી|मध्ये/i.test(question)) || /\b(?:kase|kasa|kashi|ahe|aahe|ani|pune|mumbai|madhye|aaj|kadhi|kiti)\b/i.test(question));
+    const isHindi = !isGujarati && !isMarathi && (nlu.language === 'hi' || nlu.language === 'hinglish' || /[\u0900-\u097F]/.test(question) || /\b(?:barish|baarish|mausam|hoga|hogi|hoge|kaisa|kaisi|kaise|kya|batao|bataye|aaj|kal|chata|dhoop|hawa|aandhi|taapman|pani|hai|hain|nahi)\b/i.test(question));
 
     const isLaundryQuery = /kapda|કપડાં|સુકવવા|कपड़े|wash|dry|dhova|kapada/i.test(question);
     const isTravelQuery = /travel|driving|trip|musafari|મુસાફરી|જવું|નિક્ળવું|jaay|jaai|સફર|હાઇવે|highway|road/i.test(question);

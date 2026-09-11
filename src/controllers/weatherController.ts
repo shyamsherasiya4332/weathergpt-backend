@@ -80,7 +80,20 @@ export class WeatherController {
 
       // 2. Language Detection across all 22 official Indian languages + Hinglish
       const detectedLang = languageService.detect(cleanQuestion);
-      const effectiveLanguage = reqLanguage || extractedDirectiveLang || detectedLang.code;
+
+      // If the question is written in Gujarati/Hindi/Indic script or Gujlish/Hinglish,
+      // the question's natural detected language ALWAYS takes priority over frontend's default 'en'!
+      let effectiveLanguage = detectedLang.code;
+      if (reqLanguage && reqLanguage !== 'auto' && reqLanguage !== 'en') {
+        // User explicitly picked a specific non-English language in UI dropdown (e.g. 'gu', 'hi', 'mr')
+        effectiveLanguage = reqLanguage;
+      } else if (extractedDirectiveLang) {
+        effectiveLanguage = extractedDirectiveLang;
+      } else if (detectedLang.code !== 'en') {
+        effectiveLanguage = detectedLang.code;
+      } else {
+        effectiveLanguage = reqLanguage || 'en';
+      }
 
       // 3. NLU & Intent parsing
       const nlu = await llmService.parseNLU(cleanQuestion, locationInput);

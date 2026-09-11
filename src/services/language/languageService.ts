@@ -175,12 +175,13 @@ export class LanguageService {
     const uniqueGujlish = [
       'varsad', 'padse', 'hase', 'kevi', 'kevo', 'kevu', 'chhe', 'bapore', 'savare', 'sanje', 'aaje',
       'vatavaran', 'ketlu', 'ketli', 'ketla', 'kem', 'cho', 'weatherkevu', 'puchhu', 'puchhune', 'puchhu',
-      'joiae', 'aapu', 'aapi', 'thase', 'thashe', 'nakhine', 'toy', 'karyu', 'karyo', 'pelethi', 'kaisu'
+      'joiae', 'aapu', 'aapi', 'thase', 'thashe', 'nakhine', 'toy', 'karyu', 'karyo', 'pelethi', 'kaisu',
+      'tapman', 'hawaaman'
     ];
     const commonGujlish = [
       'che', 'nai', 'ke', 'paramdivas', 'thandi', 'garmi', 'uper', 'par', 'per', 'su', 'tamari', 'halo',
       'hu', 'je', 'ma', 'ne', 'te', 'j', 'tyare', 'ema', 'pan', 'kaik', 'lidhe', 'vandho', 'avto', 'hoi',
-      'kar', 'apde', 'badhu', 'dye', 'tena'
+      'kar', 'apde', 'badhu', 'dye', 'tena', 'nu', 'ni', 'no', 'na', 'chhe', 'kero'
     ];
 
     const words = text.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/);
