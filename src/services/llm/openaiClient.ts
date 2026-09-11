@@ -19,12 +19,20 @@ export class OpenAIClientWrapper {
     const rawOpenRouter = (env.OPENROUTER_API_KEY || '').trim();
     const rawGemini = (env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '').trim();
 
-    // 1. Check if ANY key is a Google Gemini API Key (starts with 'AIza')
-    const effectiveGeminiKey =
-      rawGemini ||
-      (rawOpenAI.startsWith('AIza') ? rawOpenAI : '') ||
-      (rawGroq.startsWith('AIza') ? rawGroq : '') ||
-      (rawOpenRouter.startsWith('AIza') ? rawOpenRouter : '');
+    // Google Gemini keys start with 'AQ.' (modern 2024-2026 format) or 'AIza' (classic format)
+    const isGeminiFormat = (k: string) =>
+      k.startsWith('AQ.') ||
+      k.startsWith('AIza') ||
+      (!k.startsWith('sk-') && !k.startsWith('gsk_') && k.length >= 25);
+
+    // 1. Check if ANY key is a Google Gemini API Key
+    let effectiveGeminiKey = rawGemini;
+    if (!effectiveGeminiKey && isGeminiFormat(rawOpenAI) && rawOpenAI !== 'your_openai_api_key_here') {
+      effectiveGeminiKey = rawOpenAI;
+      logger.info('Detected Google Gemini API key (AQ./AIza format) in OPENAI_API_KEY. Routing to Gemini.');
+    } else if (!effectiveGeminiKey && isGeminiFormat(rawGroq)) {
+      effectiveGeminiKey = rawGroq;
+    }
 
     if (effectiveGeminiKey) {
       this.geminiDirectKey = effectiveGeminiKey;
@@ -152,7 +160,7 @@ export class OpenAIClientWrapper {
     userPrompt: string,
     jsonMode: boolean
   ): Promise<string> {
-    const modelsToTry = [this.modelName, 'gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro'].filter(
+    const modelsToTry = [this.modelName, 'gemini-1.5-flash', 'gemini-1.5-flash-latest', 'gemini-2.0-flash', 'gemini-1.5-pro'].filter(
       (v, idx, arr) => arr.indexOf(v) === idx && v.startsWith('gemini')
     );
 
@@ -183,7 +191,10 @@ export class OpenAIClientWrapper {
             };
           }>;
         }>(url, payload, {
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': apiKey
+          },
           timeout: 15000
         });
 
