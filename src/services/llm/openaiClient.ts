@@ -1,47 +1,97 @@
 import OpenAI from 'openai';
+import axios from 'axios';
 import { env } from '../../config/env.js';
 import { logger } from '../../utils/logger.js';
 
 export class OpenAIClientWrapper {
   private client: OpenAI | null = null;
   private modelName: string = env.LLM_MODEL;
+  private geminiDirectKey: string | null = null;
+  private providerName: string = 'none';
 
   constructor() {
-    if (env.OPENAI_API_KEY && env.OPENAI_API_KEY.trim() !== '') {
+    this.initClient();
+  }
+
+  private initClient(): void {
+    const rawOpenAI = (env.OPENAI_API_KEY || '').trim();
+    const rawGroq = (env.GROQ_API_KEY || '').trim();
+    const rawOpenRouter = (env.OPENROUTER_API_KEY || '').trim();
+    const rawGemini = (env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '').trim();
+
+    // 1. Check if ANY key is a Google Gemini API Key (starts with 'AIza')
+    const effectiveGeminiKey =
+      rawGemini ||
+      (rawOpenAI.startsWith('AIza') ? rawOpenAI : '') ||
+      (rawGroq.startsWith('AIza') ? rawGroq : '') ||
+      (rawOpenRouter.startsWith('AIza') ? rawOpenRouter : '');
+
+    if (effectiveGeminiKey) {
+      this.geminiDirectKey = effectiveGeminiKey;
+      this.providerName = 'gemini';
+      this.modelName = env.LLM_MODEL && !env.LLM_MODEL.startsWith('gpt') ? env.LLM_MODEL : 'gemini-1.5-flash';
+      
+      try {
+        this.client = new OpenAI({
+          apiKey: effectiveGeminiKey,
+          baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/'
+        });
+        logger.info(`Google Gemini Client initialized with model: ${this.modelName}`);
+      } catch (err) {
+        logger.warn('Failed to initialize Gemini OpenAI adapter, direct REST will be used:', err);
+      }
+      return;
+    }
+
+    // 2. Real OpenAI key (does not start with AIza)
+    if (rawOpenAI && !rawOpenAI.startsWith('AIza') && rawOpenAI !== 'your_openai_api_key_here') {
       this.client = new OpenAI({
-        apiKey: env.OPENAI_API_KEY,
+        apiKey: rawOpenAI,
         baseURL: env.OPENAI_BASE_URL
       });
       this.modelName = env.LLM_MODEL || 'gpt-4o-mini';
+      this.providerName = 'openai';
       logger.info(`OpenAI Client initialized with base URL: ${env.OPENAI_BASE_URL}`);
-    } else if (env.GROQ_API_KEY && env.GROQ_API_KEY.trim() !== '') {
+      return;
+    }
+
+    // 3. Groq
+    if (rawGroq) {
       this.client = new OpenAI({
-        apiKey: env.GROQ_API_KEY,
+        apiKey: rawGroq,
         baseURL: 'https://api.groq.com/openai/v1'
       });
       this.modelName = env.LLM_MODEL !== 'gpt-4o-mini' ? env.LLM_MODEL : 'llama-3.3-70b-versatile';
+      this.providerName = 'groq';
       logger.info('Groq Client initialized successfully');
-    } else if (env.OPENROUTER_API_KEY && env.OPENROUTER_API_KEY.trim() !== '') {
+      return;
+    }
+
+    // 4. OpenRouter
+    if (rawOpenRouter) {
       this.client = new OpenAI({
-        apiKey: env.OPENROUTER_API_KEY,
+        apiKey: rawOpenRouter,
         baseURL: 'https://openrouter.ai/api/v1'
       });
       this.modelName = env.LLM_MODEL !== 'gpt-4o-mini' ? env.LLM_MODEL : 'meta-llama/llama-3.3-70b-instruct';
+      this.providerName = 'openrouter';
       logger.info('OpenRouter Client initialized successfully');
-    } else if (env.GEMINI_API_KEY && env.GEMINI_API_KEY.trim() !== '') {
-      this.client = new OpenAI({
-        apiKey: env.GEMINI_API_KEY.trim(),
-        baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/'
-      });
-      this.modelName = env.LLM_MODEL !== 'gpt-4o-mini' ? env.LLM_MODEL : 'gemini-1.5-flash';
-      logger.info('Google Gemini OpenAI Adapter initialized successfully');
-    } else {
-      logger.warn('No LLM API Key set. LLM service will operate with rule-based fallback generator.');
+      return;
     }
+
+    logger.warn('No valid LLM API Key set. LLM service will operate with rule-based fallback generator.');
   }
 
   isConfigured(): boolean {
-    return this.client !== null;
+    return this.client !== null || this.geminiDirectKey !== null;
+  }
+
+  getProviderInfo() {
+    return {
+      provider: this.providerName,
+      model: this.modelName,
+      isConfigured: this.isConfigured()
+    };
   }
 
   async generateChatCompletion(
@@ -49,27 +99,106 @@ export class OpenAIClientWrapper {
     userPrompt: string,
     jsonMode = false
   ): Promise<string> {
-    if (!this.client) {
+    if (!this.isConfigured()) {
       throw new Error('OPENAI_CLIENT_NOT_CONFIGURED');
     }
 
-    try {
-      const response = await this.client.chat.completions.create({
-        model: this.modelName,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        temperature: 0.3,
-        ...(jsonMode ? { response_format: { type: 'json_object' } } : {})
-      });
+    let lastError: Error | null = null;
 
-      return response.choices[0]?.message?.content || '';
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : 'LLM API error';
-      logger.error(`LLM completion failed: ${msg}`);
-      throw new Error(`LLM_ERROR: ${msg}`);
+    // 1. If Gemini direct key is available, try native Google Gemini REST API first!
+    if (this.geminiDirectKey) {
+      try {
+        const text = await this.callGeminiNative(this.geminiDirectKey, systemPrompt, userPrompt, jsonMode);
+        if (text && text.trim().length > 0) {
+          return text.trim();
+        }
+      } catch (geminiErr: unknown) {
+        const msg = geminiErr instanceof Error ? geminiErr.message : 'Gemini native REST error';
+        logger.warn(`Gemini native REST failed, trying OpenAI adapter fallback: ${msg}`);
+        lastError = geminiErr instanceof Error ? geminiErr : new Error(msg);
+      }
     }
+
+    // 2. Try OpenAI SDK (for OpenAI, Groq, OpenRouter, or Gemini OpenAI adapter)
+    if (this.client) {
+      try {
+        const response = await this.client.chat.completions.create({
+          model: this.modelName,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+          ],
+          temperature: 0.3,
+          ...(jsonMode ? { response_format: { type: 'json_object' } } : {})
+        });
+
+        const content = response.choices[0]?.message?.content || '';
+        if (content.trim().length > 0) {
+          return content.trim();
+        }
+      } catch (openAiErr: unknown) {
+        const msg = openAiErr instanceof Error ? openAiErr.message : 'LLM API error';
+        logger.error(`LLM SDK completion failed (${this.providerName}/${this.modelName}): ${msg}`);
+        lastError = openAiErr instanceof Error ? openAiErr : new Error(msg);
+      }
+    }
+
+    throw lastError || new Error('LLM completion failed across all providers.');
+  }
+
+  private async callGeminiNative(
+    apiKey: string,
+    systemPrompt: string,
+    userPrompt: string,
+    jsonMode: boolean
+  ): Promise<string> {
+    const modelsToTry = [this.modelName, 'gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro'].filter(
+      (v, idx, arr) => arr.indexOf(v) === idx && v.startsWith('gemini')
+    );
+
+    let lastErr: Error | null = null;
+
+    for (const model of modelsToTry) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+        const fullPrompt = systemPrompt ? `${systemPrompt}\n\n${userPrompt}` : userPrompt;
+        
+        const payload: Record<string, unknown> = {
+          contents: [
+            {
+              role: 'user',
+              parts: [{ text: fullPrompt }]
+            }
+          ],
+          generationConfig: {
+            temperature: 0.3,
+            ...(jsonMode ? { responseMimeType: 'application/json' } : {})
+          }
+        };
+
+        const res = await axios.post<{
+          candidates?: Array<{
+            content?: {
+              parts?: Array<{ text?: string }>;
+            };
+          }>;
+        }>(url, payload, {
+          headers: { 'Content-Type': 'application/json' },
+          timeout: 15000
+        });
+
+        const answer = res.data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (answer) {
+          return answer;
+        }
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Gemini error';
+        lastErr = err instanceof Error ? err : new Error(msg);
+        logger.warn(`Gemini model ${model} failed, trying next: ${msg}`);
+      }
+    }
+
+    throw lastErr || new Error('All Gemini native models failed.');
   }
 }
 
