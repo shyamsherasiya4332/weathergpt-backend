@@ -172,8 +172,16 @@ export class LanguageService {
   }
 
   private getGujlishScore(text: string): number {
-    const uniqueGujlish = ['varsad', 'padse', 'hase', 'kevi', 'kevo', 'kevu', 'chhe', 'bapore', 'savare', 'sanje', 'aaje', 'vatavaran', 'ketlu', 'ketli', 'ketla', 'kem', 'cho', 'weatherkevu'];
-    const commonGujlish = ['che', 'nai', 'ke', 'paramdivas', 'thandi', 'garmi', 'uper', 'par', 'per', 'su', 'tamari', 'halo'];
+    const uniqueGujlish = [
+      'varsad', 'padse', 'hase', 'kevi', 'kevo', 'kevu', 'chhe', 'bapore', 'savare', 'sanje', 'aaje',
+      'vatavaran', 'ketlu', 'ketli', 'ketla', 'kem', 'cho', 'weatherkevu', 'puchhu', 'puchhune', 'puchhu',
+      'joiae', 'aapu', 'aapi', 'thase', 'thashe', 'nakhine', 'toy', 'karyu', 'karyo', 'pelethi', 'kaisu'
+    ];
+    const commonGujlish = [
+      'che', 'nai', 'ke', 'paramdivas', 'thandi', 'garmi', 'uper', 'par', 'per', 'su', 'tamari', 'halo',
+      'hu', 'je', 'ma', 'ne', 'te', 'j', 'tyare', 'ema', 'pan', 'kaik', 'lidhe', 'vandho', 'avto', 'hoi',
+      'kar', 'apde', 'badhu', 'dye', 'tena'
+    ];
 
     const words = text.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/);
     let score = 0;
@@ -185,8 +193,8 @@ export class LanguageService {
   }
   
   private getHinglishScore(text: string): number {
-    const uniqueHinglish = ['hoga', 'hogi', 'batao', 'kaisa', 'kaisi', 'kab', 'hai', 'mein', 'nahi', 'karo', 'main', 'tum'];
-    const commonHinglish = ['kya', 'kal', 'aur', 'bhai', 'haan', 'chalo', 'me', 'ho', 'bhi', 'toh', 'par', 'per'];
+    const uniqueHinglish = ['hoga', 'hogi', 'batao', 'kaisa', 'kaisi', 'kab', 'hai', 'mein', 'nahi', 'karo', 'main', 'tum', 'chahiye', 'bataye', 'hoga'];
+    const commonHinglish = ['kya', 'kal', 'aur', 'bhai', 'haan', 'chalo', 'me', 'ho', 'bhi', 'toh', 'par', 'per', 'aaj', 'din', 'yeh', 'woh'];
 
     const words = text.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/);
     let score = 0;
