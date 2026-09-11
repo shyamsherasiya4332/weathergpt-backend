@@ -37,7 +37,7 @@ export class OpenAIClientWrapper {
     if (effectiveGeminiKey) {
       this.geminiDirectKey = effectiveGeminiKey;
       this.providerName = 'gemini';
-      this.modelName = env.LLM_MODEL && !env.LLM_MODEL.startsWith('gpt') ? env.LLM_MODEL : 'gemini-3.5-flash';
+      this.modelName = env.LLM_MODEL && !env.LLM_MODEL.startsWith('gpt') ? env.LLM_MODEL : 'gemini-3.6-flash';
       
       try {
         this.client = new OpenAI({
@@ -204,10 +204,10 @@ export class OpenAIClientWrapper {
     jsonMode: boolean
   ): Promise<string> {
     const modelsToTry = [
-      'gemini-3.5-flash',
-      this.modelName,
       'gemini-3.6-flash',
       'gemini-3.1-flash-lite',
+      this.modelName,
+      'gemini-3.5-flash',
       'gemini-flash-latest'
     ].filter((v, idx, arr) => arr.indexOf(v) === idx && v.startsWith('gemini'));
 
@@ -258,6 +258,11 @@ export class OpenAIClientWrapper {
           return answer;
         }
       } catch (err: unknown) {
+        // If HTTP 429 (quota exhausted on this model), skip retry completely and jump instantly to next model!
+        if (axios.isAxiosError(err) && err.response?.status === 429) {
+          logger.warn(`Gemini model ${model} quota exhausted (HTTP 429) in ${Date.now() - tModel}ms. Skipping instantly to next model.`);
+          continue;
+        }
         // If 400 (e.g. systemInstruction or thinkingConfig unsupported on older schema), retry cleanly without them
         if (axios.isAxiosError(err) && err.response?.status === 400) {
           try {
