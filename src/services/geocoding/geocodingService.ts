@@ -93,9 +93,9 @@ export class OpenMeteoGeocodingProvider implements IGeocodingProvider {
       );
       const selectedLocation = indiaMatch || locations[0];
 
-      // Mark ambiguous ONLY if no clear Indian match exists AND multiple distinct countries are found
-      const distinctCountries = new Set(locations.map(l => `${l.name}, ${l.state || ''}, ${l.country || ''}`));
-      const isAmbiguous = !indiaMatch && distinctCountries.size > 1 && locations.length > 1;
+      // Open-Meteo sorts results by importance / population descending, so locations[0] is the primary match.
+      // We prioritize an Indian match if available, otherwise the top global match.
+      const isAmbiguous = false;
 
       const geocodeResult: GeocodingResult = {
         success: true,

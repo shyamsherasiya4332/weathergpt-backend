@@ -294,7 +294,7 @@ export function getTimeRangeStats(
 }
 
 export class LLMService {
-  async parseNLU(question: string, locationContext?: LocationEntity): Promise<ParsedNLU> {
+  async parseNLU(question: string, locationContext?: LocationEntity | LocationInput): Promise<ParsedNLU> {
     const detectedLangInfo = languageService.detect(question);
     const language = detectedLangInfo.code;
     const fullLangName = detectedLangInfo.name;
@@ -326,7 +326,7 @@ Extract JSON:
         const parsed = JSON.parse(responseText.replace(/```json/g, '').replace(/```/g, '').trim());
         return {
           intent: parsed.intent || 'general_forecast',
-          locationName: parsed.locationName || undefined,
+          locationName: parsed.locationName || (locationContext && 'name' in locationContext ? locationContext.name : undefined),
           isLocationNeeded: parsed.isLocationNeeded ?? true,
           targetDate: parsed.targetDate || 'today',
           specificDateStr: parsed.specificDateStr || undefined,
@@ -340,10 +340,10 @@ Extract JSON:
       }
     }
 
-    return this.heuristicNLU(question);
+    return this.heuristicNLU(question, locationContext);
   }
 
-  private heuristicNLU(question: string): ParsedNLU {
+  private heuristicNLU(question: string, locationContext?: LocationEntity | LocationInput): ParsedNLU {
     const qLower = question.toLowerCase();
 
     let intent: ParsedNLU['intent'] = 'general_forecast';
@@ -391,37 +391,105 @@ Extract JSON:
     let locationName: string | undefined = undefined;
 
     const knownCitiesMap: Record<string, string> = {
+      // Landmarks & Tourist Sites
       'Statue of Unity': 'Statue of Unity', 'Somnath Temple': 'Somnath Temple', 'Somnath': 'Somnath',
       'Gir National Park': 'Gir National Park', 'Gir': 'Gir', 'Sabarmati Riverfront': 'Sabarmati Riverfront',
-      'Sabarmati': 'Sabarmati', 'Rajkot Gujarat': 'Rajkot', 'Rajkot': 'Rajkot', 'Morbi Gujarat': 'Morbi',
-      'Morbi': 'Morbi', 'Ahmedabad': 'Ahmedabad', 'Surat': 'Surat', 'Vadodara': 'Vadodara',
-      'Mumbai': 'Mumbai', 'Delhi': 'Delhi', 'Bangalore': 'Bangalore', 'Chennai': 'Chennai',
-      'Kolkata': 'Kolkata', 'Jaipur': 'Jaipur', 'Pune': 'Pune', 'Hyderabad': 'Hyderabad',
-      'Junagadh': 'Junagadh', 'Jamnagar': 'Jamnagar', 'Bhavnagar': 'Bhavnagar', 'Anand': 'Anand',
-      'Nadiad': 'Nadiad', 'Bhuj': 'Bhuj', 'Kutch': 'Kutch', 'Dwarka': 'Dwarka',
+      'Sabarmati': 'Sabarmati', 'Rann of Kutch': 'Rann of Kutch', 'Taj Mahal': 'Agra',
+      'India Gate': 'Delhi', 'Gateway of India': 'Mumbai', 'Dwarkadhish Temple': 'Dwarka',
+      'Dwarka': 'Dwarka', 'New Delhi': 'Delhi', 'Navi Mumbai': 'Navi Mumbai',
+      // Major Metros & Capitals
+      'Delhi': 'Delhi', 'Mumbai': 'Mumbai', 'Bangalore': 'Bangalore', 'Bengaluru': 'Bengaluru',
+      'Hyderabad': 'Hyderabad', 'Chennai': 'Chennai', 'Kolkata': 'Kolkata', 'Pune': 'Pune',
+      'Ahmedabad': 'Ahmedabad', 'Surat': 'Surat', 'Jaipur': 'Jaipur', 'Lucknow': 'Lucknow',
+      'Kanpur': 'Kanpur', 'Nagpur': 'Nagpur', 'Indore': 'Indore', 'Thane': 'Thane',
+      'Bhopal': 'Bhopal', 'Visakhapatnam': 'Visakhapatnam', 'Vizag': 'Visakhapatnam',
+      'Patna': 'Patna', 'Vadodara': 'Vadodara', 'Ghaziabad': 'Ghaziabad', 'Ludhiana': 'Ludhiana',
+      'Agra': 'Agra', 'Nashik': 'Nashik', 'Faridabad': 'Faridabad', 'Meerut': 'Meerut',
+      'Rajkot': 'Rajkot', 'Varanasi': 'Varanasi', 'Kashi': 'Varanasi', 'Srinagar': 'Srinagar',
+      'Aurangabad': 'Aurangabad', 'Dhanbad': 'Dhanbad', 'Amritsar': 'Amritsar', 'Prayagraj': 'Prayagraj',
+      'Allahabad': 'Prayagraj', 'Ranchi': 'Ranchi', 'Gwalior': 'Gwalior', 'Jabalpur': 'Jabalpur',
+      'Coimbatore': 'Coimbatore', 'Vijayawada': 'Vijayawada', 'Jodhpur': 'Jodhpur', 'Madurai': 'Madurai',
+      'Raipur': 'Raipur', 'Kota': 'Kota', 'Chandigarh': 'Chandigarh', 'Guwahati': 'Guwahati',
+      'Solapur': 'Solapur', 'Mysore': 'Mysore', 'Mysuru': 'Mysuru', 'Gurgaon': 'Gurugram',
+      'Gurugram': 'Gurugram', 'Noida': 'Noida', 'Jamshedpur': 'Jamshedpur', 'Cuttack': 'Cuttack',
+      'Bhubaneswar': 'Bhubaneswar', 'Kochi': 'Kochi', 'Cochin': 'Kochi', 'Dehradun': 'Dehradun',
+      'Shimla': 'Shimla', 'Goa': 'Goa', 'Panaji': 'Panaji', 'Thiruvananthapuram': 'Thiruvananthapuram',
+      'Trivandrum': 'Thiruvananthapuram', 'Udaipur': 'Udaipur', 'Jammu': 'Jammu',
+      // Gujarat Districts & Cities
+      'Morbi': 'Morbi', 'Botad': 'Botad', 'Junagadh': 'Junagadh', 'Jamnagar': 'Jamnagar',
+      'Bhavnagar': 'Bhavnagar', 'Anand': 'Anand', 'Nadiad': 'Nadiad', 'Bhuj': 'Bhuj',
+      'Kutch': 'Kutch', 'Gandhinagar': 'Gandhinagar', 'Porbandar': 'Porbandar',
+      'Surendranagar': 'Surendranagar', 'Mehsana': 'Mehsana', 'Navsari': 'Navsari',
+      'Vapi': 'Vapi', 'Valsad': 'Valsad', 'Bharuch': 'Bharuch', 'Palanpur': 'Palanpur',
+      'Veraval': 'Veraval', 'Amreli': 'Amreli', 'Godhra': 'Godhra', 'Patan': 'Patan',
+      'Dahod': 'Dahod',
+      // Global Cities
+      'London': 'London', 'New York': 'New York', 'Paris': 'Paris', 'Tokyo': 'Tokyo',
+      'Dubai': 'Dubai', 'Singapore': 'Singapore', 'Sydney': 'Sydney', 'Toronto': 'Toronto',
+      'Berlin': 'Berlin', 'Rome': 'Rome', 'Madrid': 'Madrid', 'Moscow': 'Moscow',
+      'Bangkok': 'Bangkok', 'Chicago': 'Chicago', 'San Francisco': 'San Francisco',
+      'Seattle': 'Seattle', 'Los Angeles': 'Los Angeles',
+      // Devanagari Names & Inflections
       'मुंबईमध्ये': 'Mumbai', 'मुंबईत': 'Mumbai', 'मुंबई': 'Mumbai', 'मुम्बई': 'Mumbai',
       'पुण्यात': 'Pune', 'पुण्यामध्ये': 'Pune', 'पुणे': 'Pune',
       'नागपूर': 'Nagpur', 'नागपुर': 'Nagpur', 'नाशिक': 'Nashik',
-      'અહમદાબાદ': 'Ahmedabad', 'અમદાવાદ': 'Ahmedabad', 'અમદાવાદમાં': 'Ahmedabad',
-      'રાજકોટ': 'Rajkot', 'રાજકોટમાં': 'Rajkot', 'મોરબી': 'Morbi', 'મોરબીમાં': 'Morbi',
-      'બોટાદ': 'Botad', 'બોટાદમાં': 'Botad', 'સુરત': 'Surat', 'સુરતમાં': 'Surat',
-      'વડોદરા': 'Vadodara', 'વડોદરામાં': 'Vadodara', 'ભાવનગર': 'Bhavnagar', 'જામનગર': 'Jamnagar',
-      'જૂનાગઢ': 'Junagadh', 'દિલ્હી': 'Delhi', 'दिल्ली': 'Delhi', 'जोधपुर': 'Jodhpur',
-      'जयपुर': 'Jaipur', 'कोलकाता': 'Kolkata', 'चेन्नई': 'Chennai', 'हैदराबाद': 'Hyderabad'
+      'दिल्ली': 'Delhi', 'नई दिल्ली': 'Delhi', 'जोधपुर': 'Jodhpur',
+      'जयपुर': 'Jaipur', 'कोलकाता': 'Kolkata', 'चेन्नई': 'Chennai',
+      'हैदराबाद': 'Hyderabad', 'लखनऊ': 'Lucknow', 'कानपुर': 'Kanpur',
+      'भोपाल': 'Bhopal', 'इंदौर': 'Indore', 'पटना': 'Patna',
+      'आगरा': 'Agra', 'वाराणसी': 'Varanasi', 'प्रयागराज': 'Prayagraj',
+      'अमृतसर': 'Amritsar', 'श्रीनगर': 'Srinagar', 'शिमला': 'Shimla',
+      'देहरादून': 'Dehradun', 'गोवा': 'Goa', 'चंडीगढ़': 'Chandigarh',
+      'गांधीनगर': 'Gandhinagar',
+      // Gujarati Names & Inflections
+      'અમદાવાદ': 'Ahmedabad', 'અમદાવાદમાં': 'Ahmedabad', 'અમદાવાદનું': 'Ahmedabad',
+      'રાજકોટ': 'Rajkot', 'રાજકોટમાં': 'Rajkot', 'રાજકોટનું': 'Rajkot',
+      'મોરબી': 'Morbi', 'મોરબીમાં': 'Morbi', 'મોરબીનું': 'Morbi',
+      'બોટાદ': 'Botad', 'બોટાદમાં': 'Botad', 'બોટાદનું': 'Botad',
+      'સુરત': 'Surat', 'સુરતમાં': 'Surat', 'સુરતનું': 'Surat',
+      'વડોદરા': 'Vadodara', 'વડોદરામાં': 'Vadodara', 'વડોદરાનું': 'Vadodara',
+      'ભાવનગર': 'Bhavnagar', 'જામનગર': 'Jamnagar', 'જૂનાગઢ': 'Junagadh',
+      'ગાંધીનગર': 'Gandhinagar', 'ગાંધીનગરમાં': 'Gandhinagar', 'ગાંધીનગરનું': 'Gandhinagar',
+      'દિલ્હી': 'Delhi', 'મુંબઈ': 'Mumbai', 'પૂણે': 'Pune',
+      'જયપુર': 'Jaipur', 'કોલકાતા': 'Kolkata', 'ચેન્નાઈ': 'Chennai',
+      'બેંગ્લોર': 'Bangalore', 'હૈદરાબાદ': 'Hyderabad'
     };
 
-    for (const [key, val] of Object.entries(knownCitiesMap)) {
-      if (question.includes(key) || qLower.includes(key.toLowerCase())) {
-        locationName = val;
-        break;
+    // Sort entries by length descending so longer compound names match before shorter subsets
+    const sortedEntries = Object.entries(knownCitiesMap).sort((a, b) => b[0].length - a[0].length);
+    for (const [key, val] of sortedEntries) {
+      if (/[\u0900-\u0D7F]/.test(key)) {
+        if (question.includes(key)) {
+          locationName = val;
+          break;
+        }
+      } else {
+        const wordRegex = new RegExp(`\\b${key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+        if (wordRegex.test(question)) {
+          locationName = val;
+          break;
+        }
       }
     }
 
     if (!locationName) {
-      const suffixMatch = question.match(/([A-Za-z\u0A80-\u0AFF\u0900-\u097F]{2,30})(?:मध्ये|मधे|त|તમાં|માં|મા|में|से|को)\b/i);
+      // Suffix match for Indic inflections (Gujarati, Hindi, Marathi)
+      const suffixMatch = question.match(/([A-Za-z\u0A80-\u0AFF\u0900-\u097F]{2,30})\s*(?:मध्ये|मधे|्यात|ात|ત|તમાં|માં|મા|में|से|કો|को|નું|ની|નો|ના)(?:\s|[.,?!]|$|\b)/i);
       if (suffixMatch) {
         let candidate = suffixMatch[1].trim();
         candidate = candidate.replace(/^(?:kale|aaje|today|tomorrow|kal|shyam|sanje|savare|morning|evening|night|garmi|thandi|aaj|aata)\s*/i, '').trim();
+        if (candidate && candidate.length >= 2) {
+          locationName = candidate;
+        }
+      }
+    }
+
+    if (!locationName) {
+      // Hindi / Marathi genitive pattern: "लखनऊ का मौसम", "पुणे का तापमान", "गोवा की बारिश"
+      const genitiveMatch = question.match(/([A-Za-z\u0A80-\u0AFF\u0900-\u097F\s]{2,30})\s+(?:का|की|કે|चे|ची|च्या)\s+(?:मौसम|हवामान|तापमान|बारिश|गर्मी|थंड)/i);
+      if (genitiveMatch) {
+        let candidate = genitiveMatch[1].trim();
+        candidate = candidate.replace(/^(?:kale|aaje|today|tomorrow|kal|shyam|sanje|savare|morning|evening|night|garmi|thandi)\s+/i, '').trim();
         if (candidate && candidate.length >= 2) {
           locationName = candidate;
         }
@@ -440,11 +508,13 @@ Extract JSON:
     }
 
     if (!locationName) {
-      const inMatch = question.match(/(?:in|at|for|near)\s+([A-Za-z\u0A80-\u0AFF\u0900-\u097F\s]{2,30})/i);
+      // Ensure word boundary before in, at, for, near, of, around so words like "What", "That" don't match
+      const inMatch = question.match(/\b(?:in|at|for|near|of|around)\s+([A-Za-z\u0A80-\u0AFF\u0900-\u097F\s]{2,30})/i);
       if (inMatch) {
         let candidate = inMatch[1].trim();
         candidate = candidate.split(/\s+(?:today|tomorrow|tonight|rain|varsad|hase|padse|ke|nai|hoga|kya|garmi|thandi)\b/i)[0].trim();
-        if (candidate) {
+        candidate = candidate.replace(/[.,?!]+$/, '').trim();
+        if (candidate && candidate.length >= 2) {
           locationName = candidate;
         }
       }
@@ -453,12 +523,24 @@ Extract JSON:
     if (locationName) {
       locationName = locationName
         .replace(/\b(?:my\s*location|mara\s*location|mare\s*location|near\s*me|my\s*city|here|અહીં|અહીંનું|મારી\s*જગ્યા|મેરે\s*પાસ|મેરે\s*શહર)\b/gi, '')
-        .replace(/\b(?:gujarat|maharashtra|rajasthan|punjab|haryana|delhi|karnataka|kerala|tamilnadu|india|bharat)\b/gi, '')
         .replace(/\b(?:varsad|rain|weather|forecast|hoga|hogi|padse|hase|ke|nai|kya|aaje|kale|today|tomorrow|shyam|sanje|savare|temp|taapman|garmi|thandi|bafaro|kase|aahe|hawaman)\b/gi, '')
+        .replace(/[.,?!]+$/, '')
         .trim();
+
+      // If locationName has extra state specifiers like "Rajkot Gujarat" or "Morbi, Gujarat", extract city
+      const cityStateMatch = locationName.match(/^([A-Za-z\u0A80-\u0AFF\u0900-\u097F]{2,25})[\s,]+(?:gujarat|maharashtra|rajasthan|punjab|haryana|karnataka|kerala|tamil\s*nadu|india|bharat)$/i);
+      if (cityStateMatch) {
+        locationName = cityStateMatch[1].trim();
+      }
+
       if (locationName.length === 0) {
         locationName = undefined;
       }
+    }
+
+    // Fall back to context location if available and no location in query
+    if (!locationName && locationContext && 'name' in locationContext && locationContext.name) {
+      locationName = locationContext.name;
     }
 
     const isExplicitOffTopic = /what\s*is\s*my\s*name|maru\s*naa?m|mera\s*naa?m|who\s*am\s*i|my\s*age|maru\s*nam|mera\s*nam|who\s*are\s*you|tamaru\s*naam|aapka\s*naam|who\s*made\s*you|kone\s*banavya|kisine\s*banaya|who\s*created|tell\s*me\s*a?\s*joke|chutkule|joke\s*suno|tell\s*story|kahani|recipe|cook|capital\s*of|prime\s*minister|pm\s*of|president|who\s*is\s*the|calculate|2\s*\+\s*2|math|programming|write\s*a?\s*code|song\s*suno|gana\s*gao|song|movie|cinema/i.test(question);

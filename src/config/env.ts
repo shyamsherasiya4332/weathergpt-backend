@@ -7,7 +7,7 @@ dotenv.config();
 const envSchema = z.object({
   PORT: z.coerce.number().default(3000),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
-  FRONTEND_URL: z.string().default('http://localhost:5173'),
+  FRONTEND_URL: z.string().default('*'),
 
   // LLM Config
   OPENAI_API_KEY: z.string().optional().default(''),
@@ -15,7 +15,7 @@ const envSchema = z.object({
   LLM_MODEL: z.string().default('gpt-4o-mini'),
   GROQ_API_KEY: z.string().optional().default(''),
   OPENROUTER_API_KEY: z.string().optional().default(''),
-  GEMINI_API_KEY: z.string().optional().default(''),
+  GEMINI_API_KEY: z.string().optional().default('').transform(val => val || process.env.GOOGLE_API_KEY || ''),
 
   // Weather Provider Config
   WEATHER_API_KEY: z.string().optional().default(''),

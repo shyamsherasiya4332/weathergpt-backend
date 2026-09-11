@@ -11,7 +11,7 @@ import { timelineService } from '../services/timeline/timelineService.js';
 import { weatherService } from '../services/weather/weatherService.js';
 import { climateService } from '../services/climate/climateService.js';
 import { imageService } from '../services/image/imageService.js';
-import { notificationService } from '../services/notifications/notificationService.js';
+import { notificationService } from '../services/notification/notificationService.js';
 import { moesService } from '../services/moes/moesService.js';
 import { airQualityService } from '../services/airQuality/airQualityService.js';
 import { disasterService } from '../services/disaster/disasterService.js';
@@ -21,11 +21,12 @@ import { explainableService } from '../services/explain/explainableService.js';
 import { shareService } from '../services/share/shareService.js';
 import { agriService } from '../services/agri/agriService.js';
 import { weatherLensService } from '../services/lens/weatherLensService.js';
+import { ragService } from '../services/rag/ragService.js';
 import { ApiErrorResponse, AskResponseSuccess } from '../types/api.js';
 import { logger } from '../utils/logger.js';
 
 export const askRequestSchema = z.object({
-  question: z.string().min(1, 'Question is required').max(500, 'Question max length is 500 characters'),
+  question: z.string().min(1, 'Question is required').max(2500, 'Question max length is 2500 characters'),
   location: z
     .object({
       name: z.string().optional(),
@@ -53,7 +54,23 @@ export class WeatherController {
   async handleAsk(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { question, location: locationInput, language: reqLanguage, conversationId: reqConvId, persona } = req.body;
-      logger.info(`Received weather query: "${question}"`);
+      
+      // Clean query and extract language if frontend injected a system directive
+      let cleanQuestion = (question || '').trim();
+      let extractedDirectiveLang: string | undefined;
+
+      const directiveMatch = cleanQuestion.match(/\[System Directive:\s*The user has selected the language:\s*([^\]\n]+?)\s+in the UI/i);
+      if (directiveMatch) {
+        const langName = directiveMatch[1].trim();
+        cleanQuestion = cleanQuestion.replace(/\[System Directive:[\s\S]*?\]/gi, '').trim();
+        extractedDirectiveLang = languageService.getCodeFromName(langName);
+      }
+
+      if (!cleanQuestion) {
+        cleanQuestion = (question || '').trim();
+      }
+
+      logger.info(`Received weather query: "${cleanQuestion}"`);
 
       // 1. Conversation Memory retrieval
       let convContext = reqConvId ? conversationService.getConversation(reqConvId) : undefined;
@@ -62,18 +79,18 @@ export class WeatherController {
       }
 
       // 2. Language Detection across all 22 official Indian languages + Hinglish
-      const detectedLang = languageService.detect(question);
-      const effectiveLanguage = reqLanguage || detectedLang.code;
+      const detectedLang = languageService.detect(cleanQuestion);
+      const effectiveLanguage = reqLanguage || extractedDirectiveLang || detectedLang.code;
 
       // 3. NLU & Intent parsing
-      const nlu = await llmService.parseNLU(question);
+      const nlu = await llmService.parseNLU(cleanQuestion, locationInput);
       nlu.language = effectiveLanguage;
 
       // Check Greeting Intent (e.g. "hello", "hi", "kem cho", "namaste", "halo", "ram ram")
-      const isGreetingPattern = /^(?:hello|hi|hey|helo|kem\s*cho|namaste|namaskar|halo|ram\s*ram|su\s*prabhat|good\s*morning|good\s*evening|good\s*afternoon|good\s*night|pranam|jay\s*shree\s*krishna|har\s*har\s*mahadev|kaisa\s*ho|નમસ્તે|નમસ્કાર|કેમ\s*છો|હલો|પ્રણામ|હાય|હેલો|હરિ\s*ઓમ)\b/i.test(question.trim());
+      const isGreetingPattern = /^(?:hello|hi|hey|helo|kem\s*cho|namaste|namaskar|halo|ram\s*ram|su\s*prabhat|good\s*morning|good\s*evening|good\s*afternoon|good\s*night|pranam|jay\s*shree\s*krishna|har\s*har\s*mahadev|kaisa\s*ho|નમસ્તે|નમસ્કાર|કેમ\s*છો|હલો|પ્રણામ|હાય|હેલો|હરિ\s*ઓમ)\b/i.test(cleanQuestion.trim());
       if (nlu.intent === 'greeting' || isGreetingPattern) {
-        logger.info(`Handling greeting intent for query: "${question}"`);
-        const greetingAns = await llmService.generateGreeting(question, nlu.language);
+        logger.info(`Handling greeting intent for query: "${cleanQuestion}"`);
+        const greetingAns = await llmService.generateGreeting(cleanQuestion, nlu.language);
         res.json({
           success: true,
           answer: greetingAns,
@@ -86,8 +103,8 @@ export class WeatherController {
 
       // Check Off-Topic / Unknown Intent (e.g. "what is my name", "who are you", "tell me a joke", "who is PM")
       if (nlu.intent === 'unknown') {
-        logger.info(`Handling off-topic unknown intent for query: "${question}"`);
-        const offTopicAns = await llmService.generateOffTopicResponse(question, nlu.language);
+        logger.info(`Handling off-topic unknown intent for query: "${cleanQuestion}"`);
+        const offTopicAns = await llmService.generateOffTopicResponse(cleanQuestion, nlu.language);
         res.json({
           success: true,
           answer: offTopicAns,
@@ -99,7 +116,7 @@ export class WeatherController {
       }
 
       // Check Affirmative Follow-up (e.g. "yes", "ha", "haan", "હા", "हाँ", "ok", "sure", "bato")
-      const isAffirmative = /^(?:yes|ha|haan|haa|haanji|હા|हाँ|ok|okay|sure|yeah|yep|yup|hange|true|bato|kaho|aapo|ha\s+bato|ha\s+aapo|baporo|sanj)$/i.test(question.trim());
+      const isAffirmative = /^(?:yes|ha|haan|haa|haanji|હા|हाँ|ok|okay|sure|yeah|yep|yup|hange|true|bato|kaho|aapo|ha\s+bato|ha\s+aapo|baporo|sanj)$/i.test(cleanQuestion.trim());
       if ((nlu.intent === 'follow_up_time_breakdown' || isAffirmative) && convContext?.lastWeatherData) {
         logger.info(`Handling affirmative follow-up query for location '${convContext.locationName}'`);
         const weatherData = convContext.lastWeatherData;
@@ -223,7 +240,7 @@ export class WeatherController {
       }
 
       // Check Festival / Event mode
-      const festivalMatch = matchFestival(question);
+      const festivalMatch = matchFestival(cleanQuestion);
       if (festivalMatch) {
         logger.info(`Matched festival/event '${festivalMatch.festival.name}' (${festivalMatch.dateRange.start})`);
         nlu.intent = 'general_forecast';
@@ -235,7 +252,7 @@ export class WeatherController {
       let finalLocationInput = locationInput;
       let extractedName = nlu.locationName;
 
-      const isRelativeQuery = /my\s*location|mara\s*location|mare\s*location|near\s*me|here|uper|per|par|અહીં|અહીંનું|મારી\s*જગ્યા|મેરે\s*પાસ|મેરે\s*શહર/i.test(question);
+      const isRelativeQuery = /my\s*location|mara\s*location|mare\s*location|near\s*me|here|uper|per|par|અહીં|અહીંનું|મારી\s*જગ્યા|મેરે\s*પાસ|મેરે\s*શહર/i.test(cleanQuestion);
 
       if (!finalLocationInput && !extractedName && convContext?.locationName) {
         logger.info(`Using conversation memory location '${convContext.locationName}' for follow-up query.`);
@@ -261,8 +278,6 @@ export class WeatherController {
 
       // Handle location missing or ambiguity
       if (weatherResult.error === 'LOCATION_MISSING') {
-        const isRelativeQuery = /my\s*location|mara\s*location|mare\s*location|near\s*me|here|uper|per|par|અહીં|અહીંનું|મારી\s*જગ્યા|મેરે\s*પાસ|મેરે\s*શહર/i.test(question);
-        
         let askLocMsg = '';
         if (nlu.language === 'gu') {
           askLocMsg = isRelativeQuery
@@ -338,7 +353,7 @@ export class WeatherController {
         longitude: weatherData.location.longitude,
         timezone: weatherData.location.timezone,
         language: nlu.language,
-        lastQuestion: question,
+        lastQuestion: cleanQuestion,
         lastWeatherData: weatherData
       });
 
@@ -357,12 +372,16 @@ export class WeatherController {
       const timelineData = timelineService.generateTimeline(weatherData, targetDateStr);
 
       // Natural language answer generation
-      const answer = await llmService.generateAnswer(
-        question,
+      const baseAnswer = await llmService.generateAnswer(
+        cleanQuestion,
         nlu,
         weatherData,
         rainAnalysis
       );
+
+      // RAG Knowledge Retrieval — augment answer with expert knowledge
+      const ragContext = ragService.buildContext(cleanQuestion, nlu.language, weatherData);
+      const answer = ragService.augmentAnswer(baseAnswer, ragContext, nlu.language);
 
       // 8. Trigger non-blocking Make Webhook if rain threshold is high
       if (rainAnalysis.maxRainProbability >= 70) {
@@ -378,17 +397,17 @@ export class WeatherController {
       const climateAnomaly = climateService.analyzeClimateAnomaly(weatherData);
       const emergencyNotification = notificationService.generateNotificationPayload(weatherData, riskScores);
       const weatherInfographic = imageService.generateWeatherCardSvg(weatherData, riskScores);
-      const moesBulletin = moesService.generateBulletin(weatherData, rainAnalysis, riskScores, nlu.language, question);
+      const moesBulletin = moesService.generateBulletin(weatherData, rainAnalysis, riskScores, nlu.language, cleanQuestion);
 
       const airQuality = await airQualityService.getAirQuality(weatherData.location.latitude, weatherData.location.longitude, nlu.language);
       const disasterAlerts = disasterService.generateDisasterAlerts(weatherData, rainAnalysis, riskScores);
       const forecastConfidence = confidenceService.calculateConfidence(weatherData, 0);
       const explainWhy = explainableService.generateExplanation(weatherData, weatherData.location.name);
       const communityReports = communityService.calculateCommunityConfidence(weatherData.location.name, weatherData.location.latitude, weatherData.location.longitude);
-      const shareCard = shareService.generateShareCard(weatherData.location.name, weatherData, question);
+      const shareCard = shareService.generateShareCard(weatherData.location.name, weatherData, cleanQuestion);
       const agri = await agriService.generateAgriAdvisory(weatherData.location.name, weatherData.location.latitude, weatherData.location.longitude, undefined, nlu.language);
       const weatherLens = await weatherLensService.analyzeSkyImage({
-        question,
+        question: cleanQuestion,
         latitude: weatherData.location.latitude,
         longitude: weatherData.location.longitude,
         location: weatherData.location,
@@ -469,6 +488,7 @@ export class WeatherController {
         shareCard,
         agri,
         weatherLens,
+        rag: ragContext,
         generated_at: new Date().toISOString()
       };
 

@@ -12,6 +12,7 @@ import agriRoutes from './agriRoutes.js';
 import copilotRoutes from './copilotRoutes.js';
 import notificationRoutes from './notificationRoutes.js';
 import accessibilityRoutes from './accessibilityRoutes.js';
+import ragRoutes from './ragRoutes.js';
 import { locationController, reverseGeocodeSchema } from '../controllers/locationController.js';
 import { disasterController, disasterQuerySchema } from '../controllers/disasterController.js';
 import { comparisonController, compareRequestSchema } from '../controllers/comparisonController.js';
@@ -33,6 +34,7 @@ apiRouter.use('/agri', agriRoutes);
 apiRouter.use('/copilot', copilotRoutes);
 apiRouter.use('/notifications', notificationRoutes);
 apiRouter.use('/accessibility', accessibilityRoutes);
+apiRouter.use('/rag', ragRoutes);
 
 // Reverse Geocoding Endpoint
 apiRouter.post('/location/reverse-geocode', validateRequest(reverseGeocodeSchema), (req, res, next) => {

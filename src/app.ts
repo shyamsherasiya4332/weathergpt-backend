@@ -15,7 +15,21 @@ export function createApp(): Express {
   // CORS configuration
   app.use(
     cors({
-      origin: env.FRONTEND_URL || '*',
+      origin: (origin, callback) => {
+        if (!origin) return callback(null, true);
+        if (env.FRONTEND_URL === '*' || !env.FRONTEND_URL) return callback(null, true);
+        const configuredOrigins = env.FRONTEND_URL.split(',').map((o) => o.trim());
+        if (
+          configuredOrigins.includes('*') ||
+          configuredOrigins.includes(origin) ||
+          origin.includes('vercel.app') ||
+          origin.includes('localhost') ||
+          origin.includes('127.0.0.1')
+        ) {
+          return callback(null, true);
+        }
+        return callback(null, true);
+      },
       methods: ['GET', 'POST', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization']
     })

@@ -424,5 +424,52 @@ describe('POST /api/ask - Natural Language Weather Queries', () => {
     expect(res.body.success).toBe(true);
     expect(res.body.answer).toMatch(/ભેજ|બફારો/i);
   });
+
+  // Test 16: City extraction and directive handling
+  it('16a. Should correctly resolve location for "What is the weather in Delhi?"', async () => {
+    const res = await request(app)
+      .post('/api/ask')
+      .send({ question: 'What is the weather in Delhi?' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.location.name).toBe('Delhi');
+  });
+
+  it('16b. Should correctly resolve location for "What is the weather in Gandhinagar?"', async () => {
+    const res = await request(app)
+      .post('/api/ask')
+      .send({ question: 'What is the weather in Gandhinagar?' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.location.name).toBe('Gandhinagar');
+  });
+
+  it('16c. Should strip frontend system directive and detect requested language', async () => {
+    const res = await request(app)
+      .post('/api/ask')
+      .send({
+        question: 'અમદાવાદમાં વરસાદ પડશે?\n\n[System Directive: The user has selected the language: Gujarati (ગુજરાતી) in the UI. You MUST respond entirely in Gujarati (ગુજરાતી) using its correct native script. Translate all weather terms, UI labels, descriptions, and insights. Do not use English unless the selected language is English.]'
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.location.name).toBe('Ahmedabad');
+    expect(res.body.language).toBe('gu');
+  });
+
+  it('16d. Should accept and process queries longer than 500 characters', async () => {
+    const longQuestion = 'Can you please give me the complete detailed weather forecast for Morbi for tomorrow including the temperature range from minimum to maximum, the probability of rain, the expected wind speed in km/h, and whether it is advisable to dry clothes outside or drive on the highway?\n\n[System Directive: The user has selected the language: English in the UI. You MUST respond entirely in English using its correct native script. Translate all weather terms, UI labels, descriptions, and insights. Do not use English unless the selected language is English.]';
+    expect(longQuestion.length).toBeGreaterThan(500);
+
+    const res = await request(app)
+      .post('/api/ask')
+      .send({ question: longQuestion });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.location.name).toBe('Morbi');
+  });
 });
 

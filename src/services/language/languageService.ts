@@ -128,6 +128,45 @@ export class LanguageService {
     return names[code.toLowerCase()] || code;
   }
 
+  public getCodeFromName(nameOrCode: string): string {
+    if (!nameOrCode) return 'en';
+    const clean = nameOrCode.trim().toLowerCase();
+
+    // Direct code matches
+    const codeMap: Record<string, string> = {
+      en: 'en', english: 'en',
+      hi: 'hi', hindi: 'hi', 'हिंदी': 'hi', 'हिन्दी': 'hi',
+      gu: 'gu', gujarati: 'gu', 'ગુજરાતી': 'gu',
+      mr: 'mr', marathi: 'mr', 'मराठी': 'mr',
+      bn: 'bn', bengali: 'bn', bangla: 'bn', 'বাংলা': 'bn',
+      ta: 'ta', tamil: 'ta', 'தமிழ்': 'ta',
+      te: 'te', telugu: 'te', 'తెలుగు': 'te',
+      kn: 'kn', kannada: 'kn', 'ಕನ್ನಡ': 'kn',
+      ml: 'ml', malayalam: 'ml', 'മലയാളം': 'ml',
+      pa: 'pa', punjabi: 'pa', 'ਪੰਜਾਬੀ': 'pa',
+      or: 'or', odia: 'or', oriya: 'or', 'ଓଡ଼ିଆ': 'or',
+      as: 'as', assamese: 'as', 'অসমীয়া': 'as',
+      ur: 'ur', urdu: 'ur', 'اردو': 'ur',
+      sa: 'sa', sanskrit: 'sa', 'संस्कृतम्': 'sa',
+      kok: 'kok', konkani: 'kok', 'कोंकणी': 'kok',
+      mai: 'mai', maithili: 'mai', 'मैथिली': 'mai',
+      sd: 'sd', sindhi: 'sd',
+      ks: 'ks', kashmiri: 'ks',
+      mni: 'mni', manipuri: 'mni',
+      brx: 'brx', bodo: 'brx',
+      doi: 'doi', dogri: 'doi',
+      hinglish: 'hinglish'
+    };
+
+    if (codeMap[clean]) return codeMap[clean];
+
+    for (const [key, val] of Object.entries(codeMap)) {
+      if (clean.includes(key)) return val;
+    }
+
+    return 'en';
+  }
+
   public isIndicScript(text: string): boolean {
     return /[\u0900-\u0D7F\uABC0-\uABFF]/.test(text);
   }

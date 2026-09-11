@@ -30,7 +30,7 @@ export class OpenAIClientWrapper {
       logger.info('OpenRouter Client initialized successfully');
     } else if (env.GEMINI_API_KEY && env.GEMINI_API_KEY.trim() !== '') {
       this.client = new OpenAI({
-        apiKey: env.GEMINI_API_KEY,
+        apiKey: env.GEMINI_API_KEY.trim(),
         baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/'
       });
       this.modelName = env.LLM_MODEL !== 'gpt-4o-mini' ? env.LLM_MODEL : 'gemini-1.5-flash';

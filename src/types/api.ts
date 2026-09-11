@@ -327,7 +327,7 @@ export interface AskResponseSuccess {
   mood?: WeatherMood;
   timeline?: WeatherTimeline;
   climateAnomaly?: import('../services/climate/climateService.js').ClimateAnomaly;
-  emergencyNotification?: import('../services/notifications/notificationService.js').PushNotificationPayload | null;
+  emergencyNotification?: import('../services/notification/notificationService.js').PushNotificationPayload | null;
   weatherInfographic?: import('../services/image/imageService.js').WeatherInfographicCard;
   moes_bulletin?: import('../services/moes/moesService.js').MoESBulletin;
   suggested_followups?: string[];
@@ -349,6 +349,7 @@ export interface AskResponseSuccess {
   shareCard?: ShareCardResponse;
   agri?: AgriAdvisoryResult;
   weatherLens?: WeatherLensResult;
+  rag?: import('../services/rag/ragService.js').RAGContext;
   generated_at: string;
 }
 
