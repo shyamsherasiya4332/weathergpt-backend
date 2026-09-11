@@ -598,29 +598,19 @@ Extract JSON:
     const targetDateLabelGu = nlu.targetDate === 'tomorrow' ? 'કાલે' : nlu.targetDate === 'day_after_tomorrow' ? 'પરમદિવસે' : 'આજે';
     const fullLangName = languageService.getLanguageName(nlu.language);
 
-    const userPromptPayload = `
-User Question: "${question}"
-Detected Language: ${fullLangName} (Code: ${nlu.language})
+    const minTemp = weatherData.daily[0]?.temperatureMin ? Math.round(weatherData.daily[0].temperatureMin) : Math.round(weatherData.current.temperature);
+    const maxTemp = weatherData.daily[0]?.temperatureMax ? Math.round(weatherData.daily[0].temperatureMax) : Math.round(weatherData.current.temperature);
 
-Live Weather API Data:
-- Location Name: ${weatherData.location.name}
-- Target Date: ${targetDateLabel} (${targetDateStr})
-- Current Temperature: ${weatherData.current.temperature}°C (Feels like ${weatherData.current.apparentTemperature}°C)
-- Temperature Range: ${weatherData.daily[0]?.temperatureMin ? Math.round(weatherData.daily[0].temperatureMin) : Math.round(weatherData.current.temperature)}°C to ${weatherData.daily[0]?.temperatureMax ? Math.round(weatherData.daily[0].temperatureMax) : Math.round(weatherData.current.temperature)}°C
-- Current Sky Condition: ${weatherData.current.condition}
-- Rain Chance: ${rainAnalysis.maxRainProbability}% (${rainAnalysis.maxRainProbability >= 60 ? 'likely' : rainAnalysis.maxRainProbability >= 30 ? 'possible' : 'unlikely'})
-- Expected Rain Amount: ${rainAnalysis.totalRainAmountMm} mm
-- Wind Speed: ${weatherData.current.windSpeed} km/h
-- Humidity: ${weatherData.current.humidity}%
+    const userPromptPayload = `Question: "${question}"
+Language: ${nlu.language === 'gu' ? 'Gujarati' : nlu.language === 'hi' ? 'Hindi' : 'English'}
 
-Strictly format your response according to the Output Format in your system prompt:
-- Location: ${weatherData.location.name}
-- ${targetDateLabel}: 1–2 sentence summary
-- Bullet points: 🌡️ Temperature, 🌧️ Rain chance, ☁️ Sky, 💨 Wind
-- Advice: One practical sentence (umbrella only if rain chance is meaningful)
-- Length: Strictly under 120 words
-- Script: ${nlu.language === 'gu' ? 'Pure Gujarati script' : nlu.language === 'hi' ? 'Pure Hindi script' : 'English'}.
-`;
+Weather Data:
+Location: ${weatherData.location.name}
+Condition: ${weatherData.current.condition}
+Temperature: ${minTemp}°C to ${maxTemp}°C (Current: ${weatherData.current.temperature}°C)
+Rain Chance: ${rainAnalysis.maxRainProbability}% (${rainAnalysis.maxRainProbability >= 60 ? 'likely' : rainAnalysis.maxRainProbability >= 30 ? 'possible' : 'unlikely'})
+Wind: ${weatherData.current.windSpeed} km/h
+Humidity: ${weatherData.current.humidity}%`;
 
     if (openAIClient.isConfigured()) {
       try {
@@ -677,20 +667,13 @@ Strictly format your response according to the Output Format in your system prom
     const isWindQuery = /pavan|પવન|hawa|wind|storm|ઝડપ|દિશા|hava/i.test(question);
     const isColdQuery = /thandi|ઠંડી|cold|chilly|winter|jacket|sweater|ગરમ/i.test(question);
     const isUmbrellaQuery = /chhatri|છત્રી|umbrella|raincoat|રેઈનકોટ|લેવી/i.test(question);
-    const isAgriQuery = /kheti|ખેતી|પાક|crop|farm|pesticide|irrigation|ખાતર|ખેડૂત/i.test(question);
-    const isAqiQuery = /aqi|પ્રદૂષણ|pollution|air quality|હવા/i.test(question);
-    const isNightQuery = /ratre|રાત્રે|night|મોડી/i.test(question);
-    const isMorningQuery = /savare|સવારે|morning/i.test(question);
-    const isEveningQuery = /sanje|સાંજે|evening/i.test(question);
     const isGarmiQuery = nlu.intent === 'temperature' || /garmi|ગરમી|ગરીમી|તાપમાન|temp|heat|hot/i.test(question);
     const isRainQuery = nlu.intent === 'rain_forecast' || /rain|varsad|વરસાદ|ઝાપટાં|બુંદાબુંદી|बारिश/i.test(question);
-    const isDetailRequested = /detail|report|full|card|dashboard|રિપોર્ટ|વિગત/i.test(question);
 
     const stats = getTimeRangeStats(weatherData, targetDateStr, nlu.timeRange, nlu.specificTimeRange);
     const maxTemp = stats.maxTemp;
     const minTemp = stats.minTemp;
     const rainProb = stats.maxRainProb;
-    const rainAmount = stats.totalRainMm;
     const windSpeed = stats.avgWind;
 
     const dateLabelGu = nlu.targetDate === 'tomorrow' ? 'કાલે' : nlu.targetDate === 'day_after_tomorrow' ? 'પરમદિવસે' : 'આજે';
@@ -718,26 +701,26 @@ Strictly format your response according to the Output Format in your system prom
 
       let adviceGu = 'હવામાન અનુકૂળ છે, સામાન્ય દિનચર્યા ચાલુ રાખી શકો છો.';
       if (isUmbrellaQuery) {
-        adviceGu = rainProb >= 35 ? 'વરસાદની શક્યતા હોવાથી બહાર નીકળતી વખતે સાથે છત્રી રાખવી હિતાવહ છે ☂️.' : 'વરસાદની શક્યતા ઓછી હોવાથી છત્રી રાખવાની ખાસ જરૂર નથી 🌤️.';
+        adviceGu = rainProb >= 35 ? 'વરસાદની શક્યતા હોવાથી બહાર નીકળતી વખતે સાથે છત્રી રાખવી હિતાવહ છે.' : 'વરસાદની શક્યતા ઓછી હોવાથી છત્રી રાખવાની ખાસ જરૂર નથી.';
       } else if (isLaundryQuery) {
-        adviceGu = rainProb >= 35 ? 'વરસાદની શક્યતાને કારણે કપડાં ઘરની અંદર અથવા છત નીચે સુકવવા હિતાવહ છે 🧺.' : 'આકાશ ખુલ્લું હોવાથી કપડાં બહાર તડકામાં સુકવવા માટે અનુકૂળ સમય છે 🧺.';
+        adviceGu = rainProb >= 35 ? 'વરસાદની શક્યતાને કારણે કપડાં ઘરની અંદર અથવા છત નીચે સુકવવા હિતાવહ છે.' : 'આકાશ ખુલ્લું હોવાથી કપડાં બહાર તડકામાં સુકવવા માટે અનુકૂળ સમય છે.';
       } else if (isTravelQuery) {
-        adviceGu = rainProb >= 50 ? 'વરસાદી માહોલને કારણે મુસાફરી દરમિયાન રસ્તા પર વાહન સાવચેતીથી ચલાવવું 🚗.' : 'મુસાફરી કરવા માટે હવામાન અને રસ્તા અનુકૂળ રહેશે 🚗.';
+        adviceGu = rainProb >= 50 ? 'વરસાદી માહોલને કારણે મુસાફરી દરમિયાન રસ્તા પર વાહન સાવચેતીથી ચલાવવું.' : 'મુસાફરી કરવા માટે હવામાન અને રસ્તા અનુકૂળ રહેશે.';
       } else if (isHumidityQuery) {
         adviceGu = weatherData.current.humidity >= 70
-          ? `ભેજનું પ્રમાણ ${weatherData.current.humidity}% હોવાથી બફારો વધુ અનુભવાશે, સુતરાઉ કપડાં પહેરવા 💧.`
+          ? `ભેજનું પ્રમાણ ${weatherData.current.humidity}% હોવાથી બફારો વધુ અનુભવાશે, સુતરાઉ કપડાં પહેરવા.`
           : `ભેજ અને બફારો સામાન્ય રહેશે, વાતાવરણ અનુકૂળ રહેશે.`;
       } else if (isColdQuery) {
         adviceGu = minTemp <= 18
-          ? `સવારે અને રાત્રે ઠંડી રહેવાની શક્યતા હોવાથી હળવા ગરમ કપડાં સાથે રાખવા ❄️.`
+          ? `સવારે અને રાત્રે ઠંડી રહેવાની શક્યતા હોવાથી હળવા ગરમ કપડાં સાથે રાખવા.`
           : `ઠંડીનું પ્રમાણ સામાન્ય રહેશે.`;
       } else if (rainProb >= 40) {
-        adviceGu = 'બહાર જતી વખતે છત્રી કે રેઈનકોટ સાથે રાખવો હિતાવહ છે ☂️.';
+        adviceGu = 'બહાર જતી વખતે છત્રી કે રેઈનકોટ સાથે રાખવો હિતાવહ છે.';
       } else if (maxTemp >= 38) {
-        adviceGu = 'બપોરે પુષ્કળ પાણી પીવું અને સીધા તડકાથી બચવું 💧.';
+        adviceGu = 'બપોરે પુષ્કળ પાણી પીવું અને સીધા તડકાથી બચવું.';
       }
 
-      return `**સ્થળ:** ${loc}\n\n**${dateLabelGu}:** ${summaryGu}\n\n* 🌡️ તાપમાન: ${minTemp}°C થી ${maxTemp}°C\n* 🌧️ વરસાદની શક્યતા: ${rainProb}% (${rainLikelihoodGu})\n* ☁️ આકાશ: ${gujCond}\n* 💨 પવન: ${windSpeed} કિમી/કલાક\n\n**સલાહ:** ${adviceGu}`;
+      return `Location: ${loc}\nWeather summary: ${summaryGu}\nTemperature: ${minTemp}°C થી ${maxTemp}°C\nRain chance: ${rainProb}% (${rainLikelihoodGu})\nAdvice: ${adviceGu}`;
     }
 
     // Hindi Response Handling
@@ -757,26 +740,26 @@ Strictly format your response according to the Output Format in your system prom
 
       let adviceHi = 'मौसम सामान्य गतिविधियों के लिए पूरी तरह अनुकूल है।';
       if (isUmbrellaQuery) {
-        adviceHi = rainProb >= 35 ? 'बारिश की संभावना को देखते हुए बाहर जाते समय छाता साथ रखें ☂️।' : 'बारिश की संभावना कम होने के कारण छाते की आवश्यकता नहीं है 🌤️।';
+        adviceHi = rainProb >= 35 ? 'बारिश की संभावना को देखते हुए बाहर जाते समय छाता साथ रखें।' : 'बारिश की संभावना कम होने के कारण छाते की आवश्यकता नहीं है।';
       } else if (isLaundryQuery) {
-        adviceHi = rainProb >= 35 ? 'बारिश की संभावना के कारण कपड़े अंदर सुखाना बेहतर होगा 🧺।' : 'धूप खिली रहने के कारण कपड़े बाहर सुखाने के लिए अच्छा दिन है 🧺।';
+        adviceHi = rainProb >= 35 ? 'बारिश की संभावना के कारण कपड़े अंदर सुखाना बेहतर होगा।' : 'धूप खिली रहने के कारण कपड़े बाहर सुखाने के लिए अच्छा दिन है।';
       } else if (isTravelQuery) {
-        adviceHi = rainProb >= 50 ? 'बारिश के कारण यात्रा करते समय सड़कों पर सावधानी बरतें 🚗।' : 'सफर के लिए मौसम और परिस्थितियां बिल्कुल अनुकूल हैं 🚗।';
+        adviceHi = rainProb >= 50 ? 'बारिश के कारण यात्रा करते समय सड़कों पर सावधानी बरतें।' : 'सफर के लिए मौसम और परिस्थितियां बिल्कुल अनुकूल हैं।';
       } else if (isHumidityQuery) {
         adviceHi = weatherData.current.humidity >= 70
-          ? `हवा में नमी ${weatherData.current.humidity}% होने से उमस महसूस होगी, सूती कपड़े पहनें 💧।`
+          ? `हवा में नमी ${weatherData.current.humidity}% होने से उमस महसूस होगी, सूती कपड़े पहनें।`
           : `उमस और नमी सामान्य स्तर पर रहेगी।`;
       } else if (isColdQuery) {
         adviceHi = minTemp <= 18
-          ? `सुबह और रात को ठंड का अहसास होगा, हल्के गर्म कपड़े साथ रखें ❄️।`
+          ? `सुबह और रात को ठंड का अहसास होगा, हल्के गर्म कपड़े साथ रखें।`
           : `ठंड सामान्य रहेगी।`;
       } else if (rainProb >= 40) {
-        adviceHi = 'बारिश की संभावना को देखते हुए बाहर जाते समय छाता साथ रखें ☂️।';
+        adviceHi = 'बारिश की संभावना को देखते हुए बाहर जाते समय छाता साथ रखें।';
       } else if (maxTemp >= 38) {
-        adviceHi = 'दोपहर में तेज धूप और गर्मी से बचाव के लिए पर्याप्त पानी पिएं 💧।';
+        adviceHi = 'दोपहर में तेज धूप और गर्मी से बचाव के लिए पर्याप्त पानी पिएं।';
       }
 
-      return `**स्थान:** ${loc}\n\n**${dateLabelHi}:** ${summaryHi}\n\n* 🌡️ तापमान: ${minTemp}°C से ${maxTemp}°C\n* 🌧️ बारिश की संभावना: ${rainProb}% (${rainLikelihoodHi})\n* ☁️ आसमान: ${hiCond}\n* 💨 हवा: ${windSpeed} किमी/घंटा\n\n**सलाह:** ${adviceHi}`;
+      return `Location: ${loc}\nWeather summary: ${summaryHi}\nTemperature: ${minTemp}°C से ${maxTemp}°C\nRain chance: ${rainProb}% (${rainLikelihoodHi})\nAdvice: ${adviceHi}`;
     }
 
     // English Response Handling (Default)
@@ -793,26 +776,26 @@ Strictly format your response according to the Output Format in your system prom
 
     let adviceEn = 'Conditions are favorable for regular daily activities.';
     if (isUmbrellaQuery) {
-      adviceEn = rainProb >= 35 ? 'Carrying an umbrella or raincoat is recommended as rain is possible ☂️.' : 'No umbrella is needed today as rain chance is minimal 🌤️.';
+      adviceEn = rainProb >= 35 ? 'Carrying an umbrella or raincoat is recommended as rain is possible.' : 'No umbrella is needed today as rain chance is minimal.';
     } else if (isLaundryQuery) {
-      adviceEn = rainProb >= 35 ? 'Drying clothes indoors is recommended due to rain possibility 🧺.' : 'Great conditions for drying clothes outdoors today 🧺.';
+      adviceEn = rainProb >= 35 ? 'Drying clothes indoors is recommended due to rain possibility.' : 'Great conditions for drying clothes outdoors today.';
     } else if (isTravelQuery) {
-      adviceEn = rainProb >= 50 ? 'Drive carefully as wet roads are likely due to rain 🚗.' : 'Road and weather conditions are favorable for travel 🚗.';
+      adviceEn = rainProb >= 50 ? 'Drive carefully as wet roads are likely due to rain.' : 'Road and weather conditions are favorable for travel.';
     } else if (isHumidityQuery) {
       adviceEn = weatherData.current.humidity >= 70
-        ? `High humidity (${weatherData.current.humidity}%) will cause muggy conditions; wear breathable cotton clothing 💧.`
+        ? `High humidity (${weatherData.current.humidity}%) will cause muggy conditions; wear breathable cotton clothing.`
         : `Humidity levels are moderate and comfortable.`;
     } else if (isColdQuery) {
       adviceEn = minTemp <= 18
-        ? `Chilly mornings and nights expected; keep light warm layers handy ❄️.`
+        ? `Chilly mornings and nights expected; keep light warm layers handy.`
         : `Temperatures will remain mild and pleasant.`;
     } else if (rainProb >= 40) {
-      adviceEn = 'Carry an umbrella or raincoat when heading outdoors ☂️.';
+      adviceEn = 'Carry an umbrella or raincoat when heading outdoors.';
     } else if (maxTemp >= 38) {
-      adviceEn = 'Stay well-hydrated and minimize direct afternoon sun exposure 💧.';
+      adviceEn = 'Stay well-hydrated and minimize direct afternoon sun exposure.';
     }
 
-    return `**Location:** ${loc}\n\n**${dateLabelEn}:** ${summaryEn}\n\n* 🌡️ Temperature: ${minTemp}°C to ${maxTemp}°C\n* 🌧️ Rain chance: ${rainProb}% (${rainLikelihoodEn})\n* ☁️ Sky: ${stats.condition}\n* 💨 Wind: ${windSpeed} km/h\n\n**Advice:** ${adviceEn}`;
+    return `Location: ${loc}\nWeather summary: ${summaryEn}\nTemperature: ${minTemp}°C to ${maxTemp}°C\nRain chance: ${rainProb}% (${rainLikelihoodEn})\nAdvice: ${adviceEn}`;
   }
 
   async generateGreeting(question: string, language: string): Promise<string> {

@@ -37,7 +37,7 @@ export class OpenAIClientWrapper {
     if (effectiveGeminiKey) {
       this.geminiDirectKey = effectiveGeminiKey;
       this.providerName = 'gemini';
-      this.modelName = env.LLM_MODEL && !env.LLM_MODEL.startsWith('gpt') ? env.LLM_MODEL : 'gemini-3.6-flash';
+      this.modelName = env.LLM_MODEL && !env.LLM_MODEL.startsWith('gpt') ? env.LLM_MODEL : 'gemini-2.5-flash';
       
       try {
         this.client = new OpenAI({
@@ -204,10 +204,11 @@ export class OpenAIClientWrapper {
     jsonMode: boolean
   ): Promise<string> {
     const modelsToTry = [
+      'gemini-2.5-flash',
+      'gemini-2.0-flash',
       'gemini-3.6-flash',
       'gemini-3.1-flash-lite',
       this.modelName,
-      'gemini-3.5-flash',
       'gemini-flash-latest'
     ].filter((v, idx, arr) => arr.indexOf(v) === idx && v.startsWith('gemini'));
 
@@ -229,8 +230,10 @@ export class OpenAIClientWrapper {
             }
           ],
           generationConfig: {
-            temperature: 0.3,
-            maxOutputTokens: 350,
+            temperature: 0.2,
+            maxOutputTokens: 120,
+            topP: 0.8,
+            topK: 20,
             thinkingConfig: {
               thinkingLevel: 'MINIMAL'
             },
@@ -249,13 +252,13 @@ export class OpenAIClientWrapper {
             'Content-Type': 'application/json',
             'x-goog-api-key': cleanKey
           },
-          timeout: 8000
+          timeout: 6000
         });
 
         const answer = res.data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (answer) {
+        if (answer && answer.trim().length > 0) {
           logger.info(`[LLM] Model ${model} returned response in ${Date.now() - tModel}ms`);
-          return answer;
+          return answer.trim();
         }
       } catch (err: unknown) {
         // If HTTP 429 (quota exhausted on this model), skip retry completely and jump instantly to next model!
@@ -269,8 +272,10 @@ export class OpenAIClientWrapper {
             const retryPayload = {
               contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
               generationConfig: {
-                temperature: 0.3,
-                maxOutputTokens: 350,
+                temperature: 0.2,
+                maxOutputTokens: 120,
+                topP: 0.8,
+                topK: 20,
                 ...(jsonMode ? { responseMimeType: 'application/json' } : {})
               }
             };

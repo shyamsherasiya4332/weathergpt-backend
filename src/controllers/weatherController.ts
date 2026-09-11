@@ -381,14 +381,35 @@ export class WeatherController {
       const targetDateStr = weatherData.daily[0]?.date || new Date().toISOString().split('T')[0];
       const timelineData = timelineService.generateTimeline(weatherData, targetDateStr);
 
-      // Natural language answer generation
+      // Natural language answer generation & parallel async services
       const tLlmStart = Date.now();
-      const baseAnswer = await llmService.generateAnswer(
-        cleanQuestion,
-        nlu,
-        weatherData,
-        rainAnalysis
-      );
+      const [baseAnswer, airQuality, agri, weatherLens] = await Promise.all([
+        llmService.generateAnswer(
+          cleanQuestion,
+          nlu,
+          weatherData,
+          rainAnalysis
+        ),
+        airQualityService.getAirQuality(weatherData.location.latitude, weatherData.location.longitude, nlu.language).catch((err) => {
+          logger.warn('AirQuality fetch failed non-critically:', err);
+          return undefined;
+        }),
+        agriService.generateAgriAdvisory(weatherData.location.name, weatherData.location.latitude, weatherData.location.longitude, undefined, nlu.language, weatherData).catch((err) => {
+          logger.warn('Agri advisory failed non-critically:', err);
+          return undefined;
+        }),
+        weatherLensService.analyzeSkyImage({
+          question: cleanQuestion,
+          latitude: weatherData.location.latitude,
+          longitude: weatherData.location.longitude,
+          location: weatherData.location,
+          language: nlu.language,
+          existingWeatherData: weatherData
+        }).catch((err) => {
+          logger.warn('WeatherLens analysis failed non-critically:', err);
+          return undefined;
+        })
+      ]);
       const tLlm = Date.now() - tLlmStart;
 
       // RAG Knowledge Retrieval — augment answer with expert knowledge
@@ -416,29 +437,6 @@ export class WeatherController {
       const explainWhy = explainableService.generateExplanation(weatherData, weatherData.location.name);
       const communityReports = communityService.calculateCommunityConfidence(weatherData.location.name, weatherData.location.latitude, weatherData.location.longitude);
       const shareCard = shareService.generateShareCard(weatherData.location.name, weatherData, cleanQuestion);
-
-      // Fast parallel enrichment with pre-fetched weatherData (eliminates duplicate Open-Meteo API network calls)
-      const [airQuality, agri, weatherLens] = await Promise.all([
-        airQualityService.getAirQuality(weatherData.location.latitude, weatherData.location.longitude, nlu.language).catch((err) => {
-          logger.warn('AirQuality fetch failed non-critically:', err);
-          return undefined;
-        }),
-        agriService.generateAgriAdvisory(weatherData.location.name, weatherData.location.latitude, weatherData.location.longitude, undefined, nlu.language, weatherData).catch((err) => {
-          logger.warn('Agri advisory failed non-critically:', err);
-          return undefined;
-        }),
-        weatherLensService.analyzeSkyImage({
-          question: cleanQuestion,
-          latitude: weatherData.location.latitude,
-          longitude: weatherData.location.longitude,
-          location: weatherData.location,
-          language: nlu.language,
-          existingWeatherData: weatherData
-        }).catch((err) => {
-          logger.warn('WeatherLens analysis failed non-critically:', err);
-          return undefined;
-        })
-      ]);
 
       const conversationContextObject = {
         id: convContext.id,
