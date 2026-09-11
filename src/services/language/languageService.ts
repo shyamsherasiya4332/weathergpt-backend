@@ -91,13 +91,21 @@ export class LanguageService {
     } else if (isMeetei) {
       primaryCode = 'mni'; primaryName = 'Manipuri'; script = 'Meetei Mayek';
     } else if (isLatin) {
+      const engScore = this.getEnglishScore(text);
       const gujScore = this.getGujlishScore(text);
       const hinScore = this.getHinglishScore(text);
 
-      if (hinScore > gujScore && hinScore > 0) {
+      // If English words clearly dominate or there are no strong Hinglish/Gujlish words, it is English!
+      if (hinScore > gujScore && hinScore > engScore) {
         primaryCode = 'hinglish'; primaryName = 'Hinglish'; script = 'Latin';
-      } else if (gujScore > 0) {
+      } else if (gujScore > hinScore && gujScore > engScore) {
         primaryCode = 'gu'; primaryName = 'Gujarati'; script = 'Latin';
+      } else if (hinScore > 0 && hinScore > gujScore && engScore === 0) {
+        primaryCode = 'hinglish'; primaryName = 'Hinglish'; script = 'Latin';
+      } else if (gujScore > 0 && gujScore > hinScore && engScore === 0) {
+        primaryCode = 'gu'; primaryName = 'Gujarati'; script = 'Latin';
+      } else {
+        primaryCode = 'en'; primaryName = 'English'; script = 'Latin';
       }
     }
 
@@ -171,39 +179,94 @@ export class LanguageService {
     return /[\u0900-\u0D7F\uABC0-\uABFF]/.test(text);
   }
 
-  private getGujlishScore(text: string): number {
-    const uniqueGujlish = [
-      'varsad', 'padse', 'hase', 'kevi', 'kevo', 'kevu', 'chhe', 'bapore', 'savare', 'sanje', 'aaje',
-      'vatavaran', 'ketlu', 'ketli', 'ketla', 'kem', 'cho', 'weatherkevu', 'puchhu', 'puchhune', 'puchhu',
-      'joiae', 'aapu', 'aapi', 'thase', 'thashe', 'nakhine', 'toy', 'karyu', 'karyo', 'pelethi', 'kaisu',
-      'tapman', 'hawaaman'
-    ];
-    const commonGujlish = [
-      'che', 'nai', 'ke', 'paramdivas', 'thandi', 'garmi', 'uper', 'par', 'per', 'su', 'tamari', 'halo',
-      'hu', 'je', 'ma', 'ne', 'te', 'j', 'tyare', 'ema', 'pan', 'kaik', 'lidhe', 'vandho', 'avto', 'hoi',
-      'kar', 'apde', 'badhu', 'dye', 'tena', 'nu', 'ni', 'no', 'na', 'chhe', 'kero'
+  private getEnglishScore(text: string): number {
+    const englishKeywords = [
+      'what', 'is', 'the', 'weather', 'how', 'will', 'it', 'rain', 'today', 'tomorrow',
+      'tell', 'show', 'give', 'forecast', 'temperature', 'temp', 'wind', 'humidity',
+      'degrees', 'in', 'at', 'for', 'like', 'can', 'you', 'please', 'now', 'current',
+      'hot', 'cold', 'sunny', 'cloudy', 'chance', 'of', 'any', 'there', 'here', 'my',
+      'location', 'city', 'outside', 'feels', 'going', 'to', 'let', 'know', 'good',
+      'morning', 'afternoon', 'evening', 'night', 'umbrella', 'climate', 'condition',
+      'about', 'check', 'would', 'could', 'should', 'need', 'expect', 'heavy', 'light'
     ];
 
     const words = text.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/);
     let score = 0;
     for (const w of words) {
-      if (uniqueGujlish.includes(w)) score += 2;
-      else if (commonGujlish.includes(w)) score += 1;
+      if (englishKeywords.includes(w)) score++;
     }
     return score;
   }
-  
-  private getHinglishScore(text: string): number {
-    const uniqueHinglish = ['hoga', 'hogi', 'batao', 'kaisa', 'kaisi', 'kab', 'hai', 'mein', 'nahi', 'karo', 'main', 'tum', 'chahiye', 'bataye', 'hoga'];
-    const commonHinglish = ['kya', 'kal', 'aur', 'bhai', 'haan', 'chalo', 'me', 'ho', 'bhi', 'toh', 'par', 'per', 'aaj', 'din', 'yeh', 'woh'];
+
+  private getGujlishScore(text: string): number {
+    const uniqueGujlish = [
+      'varsad', 'padse', 'hase', 'kevi', 'kevo', 'kevu', 'chhe', 'bapore', 'savare', 'sanje', 'aaje',
+      'vatavaran', 'ketlu', 'ketli', 'ketla', 'kem', 'cho', 'weatherkevu', 'puchhu', 'puchhune',
+      'joiae', 'aapu', 'aapi', 'thase', 'thashe', 'nakhine', 'toy', 'karyu', 'karyo', 'pelethi',
+      'tapman', 'hawaaman'
+    ];
+    const commonGujlish = [
+      'che', 'nai', 'paramdivas', 'tamari', 'halo',
+      'tyare', 'ema', 'kaik', 'lidhe', 'vandho', 'avto', 'hoi',
+      'apde', 'badhu', 'dye', 'tena', 'kero'
+    ];
 
     const words = text.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/);
-    let score = 0;
-    for (const w of words) {
-      if (uniqueHinglish.includes(w)) score += 2;
-      else if (commonHinglish.includes(w)) score += 1;
+    let uniqueCount = 0;
+    let commonCount = 0;
+
+    for (let i = 0; i < words.length; i++) {
+      const w = words[i];
+      if (uniqueGujlish.includes(w)) {
+        uniqueCount++;
+      } else if (commonGujlish.includes(w)) {
+        commonCount++;
+      } else if (w === 'ma') {
+        const prev = i > 0 ? words[i - 1] : '';
+        if (prev && !['the', 'a', 'an'].includes(prev)) {
+          commonCount++;
+        }
+      }
     }
-    return score;
+
+    if (uniqueCount === 0 && commonCount < 2) {
+      return 0;
+    }
+    return uniqueCount * 3 + commonCount;
+  }
+  
+  private getHinglishScore(text: string): number {
+    const uniqueHinglish = [
+      'barish', 'baarish', 'mausam', 'hoga', 'hogi', 'hoge', 'kaisa', 'kaisi', 'kaise',
+      'batao', 'bataye', 'kab', 'hai', 'hain', 'mein', 'nahi', 'nahin', 'karo', 'kare',
+      'chahiye', 'taapman', 'dhoop', 'hawa', 'badal', 'aayegi', 'ayegi', 'aayega', 'ayega',
+      'rahega', 'rahegi', 'kitna', 'kitni', 'kitne'
+    ];
+    const commonHinglish = ['kya', 'kal', 'aur', 'bhai', 'haan', 'chalo', 'ho', 'bhi', 'toh', 'aaj', 'yeh', 'woh'];
+
+    const words = text.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/);
+    let uniqueCount = 0;
+    let commonCount = 0;
+
+    for (let i = 0; i < words.length; i++) {
+      const w = words[i];
+      if (uniqueHinglish.includes(w)) {
+        uniqueCount++;
+      } else if (commonHinglish.includes(w)) {
+        commonCount++;
+      } else if (w === 'me') {
+        // Only count 'me' as Hinglish if NOT preceded by English verbs like tell, show, give, let, etc.
+        const prev = i > 0 ? words[i - 1] : '';
+        if (!['tell', 'show', 'give', 'let', 'help', 'for', 'with', 'to', 'ask', 'guide', 'teach', 'send', 'remind', 'call'].includes(prev)) {
+          commonCount++;
+        }
+      }
+    }
+
+    if (uniqueCount === 0 && commonCount < 2) {
+      return 0;
+    }
+    return uniqueCount * 3 + commonCount;
   }
 }
 

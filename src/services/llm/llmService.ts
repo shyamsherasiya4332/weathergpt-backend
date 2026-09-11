@@ -586,11 +586,11 @@ Extract JSON:
 User Question: "${question}"
 Detected Language: ${fullLangName} (Code: ${nlu.language})
 CRITICAL LANGUAGE REQUIREMENT: You MUST synthesize your response strictly in the EXACT SAME language and script as the user query (${fullLangName}).
+- If the user asked in English, reply in natural, fluent English. NEVER reply in Hindi or Gujarati when the question is in English!
 - If the user asked in Gujarati, reply in Gujarati.
 - If in Marathi, reply in Marathi.
 - If in Hindi, reply in Hindi.
 - If in Hinglish or Gujlish (Roman script), reply in Hinglish/Gujlish using Roman script.
-- Do NOT default to English unless the question was originally asked in English.
 
 User Intent Focus: ${nlu.intent}
 Specific Question Guidance: Answer the user's EXACT question directly in the very first sentence. For example:
@@ -652,12 +652,28 @@ Follow all rules of WeatherGPT system prompt.
     targetDateStr: string
   ): string {
     const loc = weatherData.location.name;
-    const isGujarati =
+    const hasIndicScript = /[\u0900-\u0D7F]/.test(question);
+    const hasGujaratiScript = /[\u0A80-\u0AFF]/.test(question);
+    const hasDevanagariScript = /[\u0900-\u097F]/.test(question);
+
+    const isExplicitEnglish = nlu.language === 'en' && !hasIndicScript;
+
+    const isGujarati = !isExplicitEnglish && (
       nlu.language === 'gu' ||
-      /[\u0A80-\u0AFF]/.test(question) ||
-      /\b(?:kale|aaje|varsad|padse|hase|nai|ke|sanje|savare|bapore|ma|mein|garmi|thandi|che|chhe|kevu|kevi|kevo|ketlu|ketli|ketla|tapman|vatavaran|thase|thashe|nu|ni|no|na|su|kem|cho|halo|mara|mare|tamare|hovanu)\b/i.test(question);
-    const isMarathi = !isGujarati && (nlu.language === 'mr' || (/[\u0900-\u097F]/.test(question) && /कसे|हवामान|आहे|आज|मुंबई|पुणे|नागपूर|कसा|कशी|झाले|काय|નાહી|मध्ये/i.test(question)) || /\b(?:kase|kasa|kashi|ahe|aahe|ani|pune|mumbai|madhye|aaj|kadhi|kiti)\b/i.test(question));
-    const isHindi = !isGujarati && !isMarathi && (nlu.language === 'hi' || nlu.language === 'hinglish' || /[\u0900-\u097F]/.test(question) || /\b(?:barish|baarish|mausam|hoga|hogi|hoge|kaisa|kaisi|kaise|kya|batao|bataye|aaj|kal|chata|dhoop|hawa|aandhi|taapman|pani|hai|hain|nahi)\b/i.test(question));
+      hasGujaratiScript ||
+      /\b(?:kale|aaje|varsad|padse|hase|bapore|savare|sanje|vatavaran|thase|thashe|kevu|kevi|kevo|ketlu|ketli|ketla|tapman|hawaaman|chhe)\b/i.test(question)
+    );
+    const isMarathi = !isExplicitEnglish && !isGujarati && (
+      nlu.language === 'mr' ||
+      (hasDevanagariScript && /कसे|हवामान|आहे|नागपूर|कसा|कशी|झाले|काय|मध्ये/i.test(question)) ||
+      /\b(?:kase|kasa|kashi|aahe|ani|madhye|kadhi|kiti)\b/i.test(question)
+    );
+    const isHindi = !isExplicitEnglish && !isGujarati && !isMarathi && (
+      nlu.language === 'hi' ||
+      nlu.language === 'hinglish' ||
+      hasDevanagariScript ||
+      /\b(?:barish|baarish|mausam|hoga|hogi|hoge|kaisa|kaisi|kaise|batao|bataye|aaj|taapman|chata|aandhi)\b/i.test(question)
+    );
 
     const isLaundryQuery = /kapda|કપડાં|સુકવવા|कपड़े|wash|dry|dhova|kapada/i.test(question);
     const isTravelQuery = /travel|driving|trip|musafari|મુસાફરી|જવું|નિક્ળવું|jaay|jaai|સફર|હાઇવે|highway|road/i.test(question);
