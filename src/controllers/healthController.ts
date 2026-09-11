@@ -39,6 +39,26 @@ export class HealthController {
       });
     }
   }
+
+  async testModels(req: Request, res: Response): Promise<void> {
+    try {
+      const data = await openAIClient.listGeminiModels();
+      res.json({
+        success: true,
+        data
+      });
+    } catch (err: unknown) {
+      let msg = err instanceof Error ? err.message : 'Unknown list models error';
+      if (typeof err === 'object' && err !== null && 'response' in err) {
+        const resp = (err as { response?: { status?: number; data?: unknown } }).response;
+        msg = `HTTP ${resp?.status}: ${JSON.stringify(resp?.data)}`;
+      }
+      res.status(500).json({
+        success: false,
+        error: msg
+      });
+    }
+  }
 }
 
 export const healthController = new HealthController();

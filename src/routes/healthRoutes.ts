@@ -11,4 +11,8 @@ router.get('/test-llm', (req, res) => {
   healthController.testLLM(req, res);
 });
 
+router.get('/test-models', (req, res) => {
+  healthController.testModels(req, res);
+});
+
 export const healthRoutes = router;

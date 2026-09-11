@@ -102,6 +102,19 @@ export class OpenAIClientWrapper {
     };
   }
 
+  async listGeminiModels(): Promise<unknown> {
+    if (!this.geminiDirectKey) {
+      throw new Error('No Gemini key configured');
+    }
+    const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(this.geminiDirectKey.trim())}`;
+    const res = await axios.get(url, {
+      headers: {
+        'x-goog-api-key': this.geminiDirectKey.trim()
+      }
+    });
+    return res.data;
+  }
+
   async generateChatCompletion(
     systemPrompt: string,
     userPrompt: string,
