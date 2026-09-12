@@ -63,7 +63,14 @@ export class VoiceController {
         confidence: result.confidence
       });
     } catch (error) {
-      next(error);
+      logger.error('Whisper Transcription Error:', error);
+      res.status(502).json({
+        success: false,
+        error: {
+          code: 'OPENAI_WHISPER_FAILED',
+          message: error instanceof Error ? error.message : 'Unknown OpenAI error'
+        }
+      });
     }
   }
 
@@ -111,7 +118,14 @@ export class VoiceController {
       });
       res.send(result.audioBuffer);
     } catch (error) {
-      next(error);
+      logger.error('TTS Generation Error:', error);
+      res.status(502).json({
+        success: false,
+        error: {
+          code: 'OPENAI_TTS_FAILED',
+          message: error instanceof Error ? error.message : 'Unknown OpenAI error'
+        }
+      });
     }
   }
 }
