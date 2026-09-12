@@ -38,6 +38,7 @@ export function createApp(): Express {
   // Body Parsing
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true }));
+  app.use(express.raw({ type: ['audio/webm', 'audio/mp3', 'audio/wav', 'audio/ogg', 'audio/x-m4a'], limit: '50mb' }));
 
   // Rate Limiting
   app.use('/api', apiRateLimiter);
