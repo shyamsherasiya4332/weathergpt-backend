@@ -53,7 +53,7 @@ export interface ParsedNLU {
   location?: StructuredLocation | null;
   isLocationNeeded: boolean;
   needsPreviousContext: boolean;
-  targetDate?: 'yesterday' | 'today' | 'tomorrow' | 'day_after_tomorrow' | 'day_after_next' | 'specific_date' | 'next_3_days';
+  targetDate?: 'yesterday' | 'today' | 'tomorrow' | 'day_after_tomorrow' | 'day_after_next' | 'specific_date' | 'next_3_days' | 'next_5_days' | 'next_7_days';
   specificDateStr?: string;
   timeRange?: 'current' | 'morning' | 'afternoon' | 'evening' | 'night' | 'specific_hours' | 'all_day' | 'full_day';
   specificTimeRange?: {

@@ -133,7 +133,13 @@ function detectIntent(question: string, hasLocation: boolean): WeatherIntent {
 
 function detectTime(question: string): Pick<ParsedNLU, 'targetDate' | 'timeRange' | 'specificTimeRange' | 'timeReference'> {
   let targetDate: ParsedNLU['targetDate'] = 'today';
-  if (/tarparamdivas|tar\s*param\s*divas|તરપરમદિવસે|narson/i.test(question)) {
+  if (/next\s*(?:5|five)\s*days|upcoming\s*(?:5|five)\s*days|5\s*divas|five\s*days/i.test(question)) {
+    targetDate = 'next_5_days';
+  } else if (/next\s*(?:3|three)\s*days|upcoming\s*(?:3|three)\s*days|3\s*divas|three\s*days/i.test(question)) {
+    targetDate = 'next_3_days';
+  } else if (/next\s*(?:7|seven)\s*days|upcoming\s*(?:7|seven)\s*days|7\s*divas|seven\s*days|week|athvadiyu/i.test(question)) {
+    targetDate = 'next_7_days';
+  } else if (/tarparamdivas|tar\s*param\s*divas|તરપરમદિવસે|narson/i.test(question)) {
     targetDate = 'day_after_next';
   } else if (/paramdivas|paramdivase|પરમદિવસે|parso|parson|day after tomorrow/i.test(question)) {
     targetDate = 'day_after_tomorrow';

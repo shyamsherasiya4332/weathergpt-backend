@@ -386,6 +386,12 @@ Extract JSON:
     let targetDate: ParsedNLU['targetDate'] = 'today';
     if (/gai\s*kale|gai\s*kal|yesterday|gai\s*kalnu|bita\s*hua|kal\s*ka\s*mausam/i.test(question)) {
       targetDate = 'yesterday';
+    } else if (/next\s*(?:5|five)\s*days|upcoming\s*(?:5|five)\s*days|5\s*divas|five\s*days/i.test(question)) {
+      targetDate = 'next_5_days';
+    } else if (/next\s*(?:3|three)\s*days|upcoming\s*(?:3|three)\s*days|3\s*divas|three\s*days/i.test(question)) {
+      targetDate = 'next_3_days';
+    } else if (/next\s*(?:7|seven)\s*days|upcoming\s*(?:7|seven)\s*days|7\s*divas|seven\s*days|week|athvadiyu/i.test(question)) {
+      targetDate = 'next_7_days';
     } else if (/tarparamdivas|tar\s*param\s*divas|તરપરમદિવસે|તર\s*પરમ\s*દિવસે|narson|narsong/i.test(question)) {
       targetDate = 'day_after_next';
     } else if (/paramdivas|paramdivase|param\s*divas|peramdivas|પરમદિવસે|પરમદિવસ|પરમદિન|parso|parson|day after tomorrow/i.test(question)) {
@@ -686,7 +692,19 @@ Weather API Data:
 - Location: ${weatherData.location.name}
 - Target: ${targetDateLabel} (${targetDateStr})
 - Current Weather: ${weatherData.current.temperature}°C, ${weatherData.current.condition}, Wind: ${weatherData.current.windSpeed} km/h, Humidity: ${weatherData.current.humidity}%
-- Forecast for ${targetDateLabel}:
+${
+  nlu.targetDate === 'next_3_days' || nlu.targetDate === 'next_5_days' || nlu.targetDate === 'next_7_days'
+    ? (() => {
+        const daysCount = nlu.targetDate === 'next_3_days' ? 3 : nlu.targetDate === 'next_5_days' ? 5 : 7;
+        const limit = Math.min(daysCount, weatherData.daily.length);
+        let str = `- Forecast for Next ${daysCount} Days:\n`;
+        for (let i = 0; i < limit; i++) {
+          const d = weatherData.daily[i];
+          str += `  * ${d.date}: Min ${Math.round(d.temperatureMin)}°C, Max ${Math.round(d.temperatureMax)}°C, Rain Prob: ${d.precipitationProbabilityMax}%, Condition: ${d.condition}\n`;
+        }
+        return str;
+      })()
+    : `- Forecast for ${targetDateLabel}:
   * Min Temperature: ${minTemp}°C, Max Temperature: ${maxTemp}°C
   * Rain Probability: ${rainAnalysis.maxRainProbability}% (${rainAnalysis.maxRainProbability >= 60 ? 'શક્યતા વધુ છે / likely' : rainAnalysis.maxRainProbability >= 30 ? 'શક્યતા છે / possible' : 'શક્યતા ઓછી છે / unlikely'})
   * Expected Rainfall: ${rainAnalysis.totalRainAmountMm} mm
@@ -696,7 +714,8 @@ ${rainAnalysis.peakRainTimeWindow ? `  * Peak Rain Time Window: ${rainAnalysis.p
   * Morning (06:00-12:00): ${morningStats.minTemp}-${morningStats.maxTemp}°C, ${morningStats.condition}, Rain Prob: ${morningStats.maxRainProb}%
   * Afternoon (12:00-17:00): ${afternoonStats.minTemp}-${afternoonStats.maxTemp}°C, ${afternoonStats.condition}, Rain Prob: ${afternoonStats.maxRainProb}%
   * Evening (17:00-21:00): ${eveningStats.minTemp}-${eveningStats.maxTemp}°C, ${eveningStats.condition}, Rain Prob: ${eveningStats.maxRainProb}%
-  * Night (21:00-06:00): ${nightStats.minTemp}-${nightStats.maxTemp}°C, ${nightStats.condition}, Rain Prob: ${nightStats.maxRainProb}%
+  * Night (21:00-06:00): ${nightStats.minTemp}-${nightStats.maxTemp}°C, ${nightStats.condition}, Rain Prob: ${nightStats.maxRainProb}%`
+}
 
 IMPORTANT INSTRUCTION FOR COMPARATIVE QUERIES:
 If the user asks to compare two locations (e.g. "difference between Ahmedabad and Mumbai") but you are only provided with Live Weather API Data for ONE location (e.g. Ahmedabad), you MUST:
@@ -764,6 +783,24 @@ If the user asks to compare two locations (e.g. "difference between Ahmedabad an
     const isUmbrellaQuery = /chhatri|છત્રી|umbrella|raincoat|રેઈનકોટ|લેવી/i.test(question);
     const isGarmiQuery = nlu.intent === 'temperature' || /garmi|ગરમી|ગરીમી|તાપમાન|temp|heat|hot/i.test(question);
     const isRainQuery = nlu.intent === 'rain_forecast' || /rain|varsad|વરસાદ|ઝાપટાં|બુંદાબુંદી|बारिश/i.test(question);
+
+    // MULTI-DAY HANDLING
+    if (nlu.targetDate === 'next_3_days' || nlu.targetDate === 'next_5_days' || nlu.targetDate === 'next_7_days') {
+      const daysCount = nlu.targetDate === 'next_3_days' ? 3 : nlu.targetDate === 'next_5_days' ? 5 : 7;
+      let multiDayGu = `${loc} માટે આગામી ${daysCount} દિવસની આગાહી:\n`;
+      let multiDayHi = `${loc} के लिए अगले ${daysCount} दिनों का पूर्वानुमान:\n`;
+      let multiDayEn = `${daysCount}-Day Forecast for ${loc}:\n`;
+
+      const limit = Math.min(daysCount, weatherData.daily.length);
+      for (let i = 0; i < limit; i++) {
+        const d = weatherData.daily[i];
+        const dateStr = new Date(d.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+        multiDayGu += `• ${dateStr}: ${Math.round(d.temperatureMin)}°C થી ${Math.round(d.temperatureMax)}°C, ${translateConditionToGujarati(d.condition)} (વરસાદ: ${d.precipitationProbabilityMax}%)\n`;
+        multiDayHi += `• ${dateStr}: ${Math.round(d.temperatureMin)}°C से ${Math.round(d.temperatureMax)}°C, ${translateConditionToHindi(d.condition)} (बारिश: ${d.precipitationProbabilityMax}%)\n`;
+        multiDayEn += `• ${dateStr}: ${Math.round(d.temperatureMin)}°C to ${Math.round(d.temperatureMax)}°C, ${d.condition} (Rain: ${d.precipitationProbabilityMax}%)\n`;
+      }
+      return isGujarati ? multiDayGu : isHindi ? multiDayHi : multiDayEn;
+    }
 
     const stats = getTimeRangeStats(weatherData, targetDateStr, nlu.timeRange, nlu.specificTimeRange);
     const maxTemp = stats.maxTemp;
