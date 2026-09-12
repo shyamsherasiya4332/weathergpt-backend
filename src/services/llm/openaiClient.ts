@@ -38,7 +38,7 @@ export class OpenAIClientWrapper {
       this.geminiDirectKey = effectiveGeminiKey;
       this.providerName = 'gemini';
       // Upgrade to Pro model for higher intelligence
-      this.modelName = env.LLM_MODEL && !env.LLM_MODEL.startsWith('gpt') ? env.LLM_MODEL : 'gemini-2.5-pro';
+      this.modelName = env.LLM_MODEL && !env.LLM_MODEL.startsWith('gpt') ? env.LLM_MODEL : 'gemini-1.5-pro';
       
       try {
         this.client = new OpenAI({
@@ -205,12 +205,13 @@ export class OpenAIClientWrapper {
     jsonMode: boolean
   ): Promise<string> {
     const modelsToTry = [
-      'gemini-2.5-flash',
-      'gemini-2.0-flash',
-      'gemini-3.6-flash',
-      'gemini-3.1-flash-lite',
       this.modelName,
-      'gemini-flash-latest'
+      'gemini-1.5-pro',
+      'gemini-1.5-flash',
+      'gemini-pro',
+      'gemini-2.5-flash',
+      'gemini-2.5-pro',
+      'gemini-2.0-flash'
     ].filter((v, idx, arr) => arr.indexOf(v) === idx && v.startsWith('gemini'));
 
     let lastErr: Error | null = null;
@@ -232,12 +233,9 @@ export class OpenAIClientWrapper {
           ],
           generationConfig: {
             temperature: 0.2,
-            maxOutputTokens: 220,
+            maxOutputTokens: 600,
             topP: 0.8,
             topK: 20,
-            thinkingConfig: {
-              thinkingLevel: 'MINIMAL'
-            },
             ...(jsonMode ? { responseMimeType: 'application/json' } : {})
           }
         };

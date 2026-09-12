@@ -960,19 +960,6 @@ ${rainAnalysis.peakRainTimeWindow ? `  * Peak Rain Time Window: ${rainAnalysis.p
     const isHinglish = language === 'hinglish';
     const isMr = language === 'mr';
 
-    // Rule-based helpful fallbacks for common general queries (Extremely fast responses)
-    if (/who\s*(?:are|r)\s*you|તમે\s*કોણ|કોણ\s*છો|तुम\s*कौन|aap\s*kaun|who\s*made\s*you/i.test(question)) {
-      if (isGu) return `હું WeatherGPT છું, તમારો સ્માર્ટ AI આસિસ્ટન્ટ! 🌤️ હું તમને હવામાન, વરસાદ, ખેતીના પાક, વાતાવરણ તેમજ તમારા કોઈપણ સામાન્ય પ્રશ્નોના સચોટ જવાબો આપવામાં મદદ કરી શકું છું. તમે મને કોઈપણ વિષય વિશે પૂછી શકો છો! 😊`;
-      if (isHi || isHinglish) return `मैं WeatherGPT हूँ, आपका स्मार्ट AI असिस्टेंट! 🌤️ मैं आपको मौसम, बारिश, खेती-किसानी, जलवायु और आपके किसी भी सामान्य प्रश्न का सही उत्तर देने के लिए यहाँ हूँ। आप मुझसे कुछ भी पूछ सकते हैं! 😊`;
-      return `I am WeatherGPT, your smart AI Assistant! 🌤️ I can help you with live weather forecasts, rain alerts, agricultural advisories, and answer any general questions you may have. Feel free to ask me anything! 😊`;
-    }
-
-    if (/joke|જોક્સ|જોક|ચુટકુલા/i.test(question)) {
-      if (isGu) return `😄 એક મજાનો જોક:\nશિક્ષક: 'વરસાદ' અને 'પરીક્ષા' માં શું સમાનતા છે?\nવિદ્યાર્થી: બંનેની તૈયારી ગમે તેટલી કરો, છેલ્લે ધોવાઈ જ જવાય છે! 🌧️😂`;
-      if (isHi || isHinglish) return `😄 एक मज़ेदार जोक:\nटीचर: बारिश और परीक्षा में क्या समानता है?\nछात्र: सर, तैयारी चाहे कितनी भी कर लो, अंत में भीगना ही पड़ता है! 🌧️😂`;
-      return `😄 Here's a weather joke for you:\nWhy did the cloud stay home from school?\nBecause it was feeling a little under the weather! ☁️😂`;
-    }
-
     if (openAIClient.isConfigured()) {
       try {
         const prompt = `You are WeatherGPT, a helpful, highly intelligent, multi-talented AI assistant.
