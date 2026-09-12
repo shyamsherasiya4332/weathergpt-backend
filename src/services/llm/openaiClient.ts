@@ -42,7 +42,8 @@ export class OpenAIClientWrapper {
       try {
         this.client = new OpenAI({
           apiKey: effectiveGeminiKey,
-          baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai'
+          baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai',
+          maxRetries: 0
         });
         logger.info(`Google Gemini Client initialized with model: ${this.modelName}`);
       } catch (err) {
@@ -55,7 +56,8 @@ export class OpenAIClientWrapper {
     if (rawOpenAI && !rawOpenAI.startsWith('AIza') && rawOpenAI !== 'your_openai_api_key_here') {
       this.client = new OpenAI({
         apiKey: rawOpenAI,
-        baseURL: env.OPENAI_BASE_URL
+        baseURL: env.OPENAI_BASE_URL,
+        maxRetries: 0
       });
       this.modelName = env.LLM_MODEL || 'gpt-4o-mini';
       this.providerName = 'openai';

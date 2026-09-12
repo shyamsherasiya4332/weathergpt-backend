@@ -702,6 +702,7 @@ If the user asks to compare two locations (e.g. "difference between Ahmedabad an
         }
       } catch (err) {
         debugError = (err as Error).message || String(err);
+        (global as any).__LAST_LLM_ERROR = debugError;
         logger.warn('LLM answer generation failed, using rule-based fallback:', err);
       }
     }
