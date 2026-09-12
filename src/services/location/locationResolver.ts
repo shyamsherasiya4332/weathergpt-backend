@@ -41,6 +41,21 @@ function isUnitedStates(country?: string): boolean {
   return c === 'united states' || c === 'united states of america' || c === 'usa' || c === 'us' || c === 'america';
 }
 
+function levenshtein(a: string, b: string): number {
+  if (a.length === 0) return b.length;
+  if (b.length === 0) return a.length;
+  const matrix = Array.from({ length: a.length + 1 }, () => new Array(b.length + 1).fill(0));
+  for (let i = 0; i <= a.length; i++) matrix[i][0] = i;
+  for (let j = 0; j <= b.length; j++) matrix[0][j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      matrix[i][j] = Math.min(matrix[i - 1][j] + 1, matrix[i][j - 1] + 1, matrix[i - 1][j - 1] + cost);
+    }
+  }
+  return matrix[a.length][b.length];
+}
+
 export function scoreLocationMatch(query: string, candidateName: string, country?: string, state?: string): number {
   const q = normalizeName(query);
   const n = normalizeName(candidateName);
@@ -53,7 +68,15 @@ export function scoreLocationMatch(query: string, candidateName: string, country
   else if (n.startsWith(q) && n.length > q.length + 2) score = 12; // Florida -> Floridablanca
   else if (q.startsWith(n) && q.length > n.length + 2) score = 18;
   else if (n.includes(q) || q.includes(n)) score = 20;
-  else return 0;
+  else {
+    const dist = levenshtein(q, n);
+    if (dist <= 2 && q.length >= 4) {
+       // Minor spelling mistake!
+       score = 75 - (dist * 10);
+    } else {
+       return 0;
+    }
+  }
 
   if (isIndia(country) && INDIA_PREFERRED_NAMES.has(q)) score += 25;
   if (state && normalizeName(state).includes(q)) score += 5;
