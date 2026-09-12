@@ -37,6 +37,12 @@ export function getRelativeDateString(
     return todayStr;
   }
 
+  if (targetDate === 'yesterday') {
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    return getFormattedDateInTimezone(yesterday, timezone);
+  }
+
   if (targetDate === 'tomorrow') {
     const tomorrow = new Date(now);
     tomorrow.setDate(tomorrow.getDate() + 1);

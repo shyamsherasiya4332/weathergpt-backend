@@ -127,6 +127,10 @@ export function getTimeRangeStats(
   const now = new Date();
   const todayStr = getFormattedDateInTimezone(now, tz);
 
+  const yest = new Date(now);
+  yest.setDate(yest.getDate() - 1);
+  const yesterdayStr = getFormattedDateInTimezone(yest, tz);
+
   const tmr = new Date(now);
   tmr.setDate(tmr.getDate() + 1);
   const tomorrowStr = getFormattedDateInTimezone(tmr, tz);
@@ -157,6 +161,13 @@ export function getTimeRangeStats(
     basePeriodGu = `આજે (${formattedDdMmYyyy})`;
     basePeriodHi = `आज (${formattedDdMmYyyy})`;
     basePeriodEn = `today (${formattedDdMmYyyy})`;
+  } else if (targetDateStr === yesterdayStr) {
+    baseDateLabelGu = `ગઈ કાલનું હવામાન (${formattedDdMmYyyy})`;
+    baseDateLabelHi = `कल का मौसम (${formattedDdMmYyyy})`;
+    baseDateLabelEn = `Yesterday's Weather (${formattedDdMmYyyy})`;
+    basePeriodGu = `ગઈ કાલે (${formattedDdMmYyyy})`;
+    basePeriodHi = `कल (${formattedDdMmYyyy})`;
+    basePeriodEn = `yesterday (${formattedDdMmYyyy})`;
   } else if (targetDateStr === tomorrowStr) {
     baseDateLabelGu = `કાલનું હવામાન (${formattedDdMmYyyy})`;
     baseDateLabelHi = `कल का मौसम (${formattedDdMmYyyy})`;
@@ -373,11 +384,13 @@ Extract JSON:
     }
 
     let targetDate: ParsedNLU['targetDate'] = 'today';
-    if (/tarparamdivas|tar\s*param\s*divas|તરપરમદિવસે|તર\s*પરમ\s*દિવસે|narson|narsong/i.test(question)) {
+    if (/gai\s*kale|gai\s*kal|yesterday|gai\s*kalnu|bita\s*hua|kal\s*ka\s*mausam/i.test(question)) {
+      targetDate = 'yesterday';
+    } else if (/tarparamdivas|tar\s*param\s*divas|તરપરમદિવસે|તર\s*પરમ\s*દિવસે|narson|narsong/i.test(question)) {
       targetDate = 'day_after_next';
     } else if (/paramdivas|paramdivase|param\s*divas|peramdivas|પરમદિવસે|પરમદિવસ|પરમદિન|parso|parson|day after tomorrow/i.test(question)) {
       targetDate = 'day_after_tomorrow';
-    } else if (/tomorrow|kale|કાલે|કાલ|कल|kal\b|kalnu|kalni|kalno|kalna|kal\s*nu|kal\s*ni|kal\s*no|kal\s*na/i.test(question)) {
+    } else if (/tomorrow|avti\s*kale|avti\s*kal|kale|કાલે|કાલ|कल|kal\b|kalnu|kalni|kalno|kalna|kal\s*nu|kal\s*ni|kal\s*no|kal\s*na/i.test(question)) {
       targetDate = 'tomorrow';
     } else if (/today|aje|aaje|આજે|આજ|आज|aaj\b|aajnu|aajni|aajno|aajna|aaj\s*nu|aaj\s*ni|aaj\s*no|aaj\s*na/i.test(question)) {
       targetDate = 'today';
@@ -653,12 +666,13 @@ If language is 'gu' or Gujarati, use pure Gujarati script. If Hindi, use pure De
     const localNow = getCurrentTimeInTimezone(tz);
     const targetDateStr = getRelativeDateString(nlu.targetDate || 'today', tz, nlu.specificDateStr);
 
-    const targetDateLabel = nlu.targetDate === 'tomorrow' ? 'Tomorrow' : nlu.targetDate === 'day_after_tomorrow' ? 'Day After Tomorrow' : 'Today';
-    const targetDateLabelGu = nlu.targetDate === 'tomorrow' ? 'કાલે' : nlu.targetDate === 'day_after_tomorrow' ? 'પરમદિવસે' : 'આજે';
+    const targetDateLabel = nlu.targetDate === 'yesterday' ? 'Yesterday' : nlu.targetDate === 'tomorrow' ? 'Tomorrow' : nlu.targetDate === 'day_after_tomorrow' ? 'Day After Tomorrow' : 'Today';
+    const targetDateLabelGu = nlu.targetDate === 'yesterday' ? 'ગઈ કાલે' : nlu.targetDate === 'tomorrow' ? 'કાલે' : nlu.targetDate === 'day_after_tomorrow' ? 'પરમદિવસે' : 'આજે';
     const fullLangName = languageService.getLanguageName(nlu.language);
 
-    const minTemp = weatherData.daily[0]?.temperatureMin ? Math.round(weatherData.daily[0].temperatureMin) : Math.round(weatherData.current.temperature);
-    const maxTemp = weatherData.daily[0]?.temperatureMax ? Math.round(weatherData.daily[0].temperatureMax) : Math.round(weatherData.current.temperature);
+    const dailyDataMatch = weatherData.daily.find(d => d.date === targetDateStr) || weatherData.daily[0];
+    const minTemp = dailyDataMatch?.temperatureMin ? Math.round(dailyDataMatch.temperatureMin) : Math.round(weatherData.current.temperature);
+    const maxTemp = dailyDataMatch?.temperatureMax ? Math.round(dailyDataMatch.temperatureMax) : Math.round(weatherData.current.temperature);
 
     const morningStats = getTimeRangeStats(weatherData, targetDateStr, 'morning', { startHour: 6, endHour: 12 });
     const afternoonStats = getTimeRangeStats(weatherData, targetDateStr, 'afternoon', { startHour: 12, endHour: 17 });
@@ -676,7 +690,7 @@ Weather API Data:
   * Min Temperature: ${minTemp}°C, Max Temperature: ${maxTemp}°C
   * Rain Probability: ${rainAnalysis.maxRainProbability}% (${rainAnalysis.maxRainProbability >= 60 ? 'શક્યતા વધુ છે / likely' : rainAnalysis.maxRainProbability >= 30 ? 'શક્યતા છે / possible' : 'શક્યતા ઓછી છે / unlikely'})
   * Expected Rainfall: ${rainAnalysis.totalRainAmountMm} mm
-  * Expected Sky Condition: ${weatherData.daily[0]?.condition || weatherData.current.condition}
+  * Expected Sky Condition: ${dailyDataMatch?.condition || weatherData.current.condition}
 ${rainAnalysis.peakRainTimeWindow ? `  * Peak Rain Time Window: ${rainAnalysis.peakRainTimeWindow}` : ''}
 - Time-of-Day Breakdown (Use if user asks for hourly/time-wise data):
   * Morning (06:00-12:00): ${morningStats.minTemp}-${morningStats.maxTemp}°C, ${morningStats.condition}, Rain Prob: ${morningStats.maxRainProb}%

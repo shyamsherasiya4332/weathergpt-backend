@@ -25,6 +25,7 @@ import { weatherLensService } from '../services/lens/weatherLensService.js';
 import { ragService } from '../services/rag/ragService.js';
 import { ApiErrorResponse, AskResponseSuccess } from '../types/api.js';
 import { logger } from '../utils/logger.js';
+import { getRelativeDateString } from '../utils/dateUtils.js';
 
 export const askRequestSchema = z.object({
   question: z.string().min(1, 'Question is required').max(2500, 'Question max length is 2500 characters'),
@@ -105,25 +106,6 @@ export class WeatherController {
         return;
       }
 
-      // Intercept 'Yesterday' queries (Since we are a forecasting app, we don't have past data natively cached without extra API calls)
-      if (/gai\s*kale|gai\s*kal|gai\s*kale|bita\s*kal|yesterday|gayi\s*kal|gayi\s*kale|ગઈકાલે|ગઈકાલ|ગઈ\s*કાલે|बीता\s*कल|कल\s*का/i.test(cleanQuestion)) {
-        const isGujarati = nlu.language === 'gu' || /[\u0A80-\u0AFF]/.test(cleanQuestion);
-        const isHindi = nlu.language === 'hi' || /[\u0900-\u097F]/.test(cleanQuestion);
-        
-        let yesterdayAns = "I am a forecasting AI assistant. I can predict today's and tomorrow's weather, but I do not store yesterday's past weather data. How can I help you with today's weather?";
-        if (isGujarati) yesterdayAns = "માફ કરશો, હું એક ભવિષ્યવાણી (Forecasting) આસિસ્ટન્ટ છું. હું માત્ર આજની અને આવતીકાલની માહિતી આપી શકું છું. મારી પાસે ગઈકાલનો જૂનો ડેટા નથી. શું હું તમને આજના હવામાન વિશે જણાવું?";
-        else if (isHindi) yesterdayAns = "क्षमा करें, मैं एक भविष्यवाणी (Forecasting) असिस्टेंट हूँ। मैं केवल आज और कल की जानकारी दे सकता हूँ। मेरे पास बीते हुए कल का डेटा नहीं है। क्या मैं आपको आज के मौसम के बारे में बताऊँ?";
-
-        res.json({
-          success: true,
-          answer: yesterdayAns,
-          language: nlu.language,
-          conversationId: convContext?.id,
-          generated_at: new Date().toISOString()
-        });
-        return;
-      }
-
       // Check Off-Topic / Unknown Intent (e.g. "what is my name", "who are you", "tell me a joke", "who is PM")
       if (nlu.intent === 'UNKNOWN' || nlu.intent === 'unknown' || nlu.intent === 'TRANSLATION' || nlu.intent === 'EXPLANATION') {
         logger.info(`Handling off-topic unknown intent for query: "${cleanQuestion}"`);
@@ -147,7 +129,8 @@ export class WeatherController {
       if ((nlu.intent === 'FOLLOW_UP_TIME_BREAKDOWN' || nlu.intent === 'follow_up_time_breakdown' || isAffirmative) && convContext?.lastWeatherData) {
         logger.info(`Handling affirmative follow-up query for location '${convContext.locationName}'`);
         const weatherData = convContext.lastWeatherData;
-        const targetDateStr = weatherData.daily[0]?.date || new Date().toISOString().split('T')[0];
+        const tz = weatherData.location.timezone || 'Asia/Kolkata';
+        const targetDateStr = getRelativeDateString(nlu.targetDate || 'today', tz, nlu.specificDateStr);
         const locName = weatherData.location.name;
         const isGu = nlu.language === 'gu' || convContext.language === 'gu';
         const isHi = !isGu && (nlu.language === 'hi' || convContext.language === 'hi');
@@ -436,7 +419,8 @@ export class WeatherController {
       const advisoriesData = advisoryService.generateAdvisories(weatherData, rainAnalysis, riskScores);
 
       // C. Structured Weather Timeline
-      const targetDateStr = weatherData.daily[0]?.date || new Date().toISOString().split('T')[0];
+      const tz = weatherData.location.timezone || 'Asia/Kolkata';
+      const targetDateStr = getRelativeDateString(nlu.targetDate || 'today', tz, nlu.specificDateStr);
       const timelineData = timelineService.generateTimeline(weatherData, targetDateStr);
 
       // Natural language answer generation & parallel async services

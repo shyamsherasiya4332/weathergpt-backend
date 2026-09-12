@@ -89,7 +89,8 @@ export class OpenMeteoWeatherProvider implements IWeatherProvider {
               'uv_index_max'
             ].join(','),
             timezone: location.timezone || 'auto',
-            forecast_days: 7
+            forecast_days: 7,
+            past_days: 2
           },
           timeout: 15000 // Increased timeout for resilience on cloud servers
         }
