@@ -72,7 +72,7 @@ export class WeatherController {
 
       // 1. Conversation Memory retrieval
       let convContext = reqConvId ? conversationService.getConversation(reqConvId) : undefined;
-      if (!convContext && reqConvId) {
+      if (!convContext) {
         convContext = conversationService.createConversation();
       }
 
