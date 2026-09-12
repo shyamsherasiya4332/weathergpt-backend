@@ -5,6 +5,7 @@ import { logger } from '../../utils/logger.js';
 
 export class OpenAIClientWrapper {
   private client: OpenAI | null = null;
+  private fallbackClients: OpenAI[] = [];
   private modelName: string = env.LLM_MODEL;
   private geminiDirectKey: string | null = null;
   private providerName: string = 'none';
@@ -85,7 +86,18 @@ export class OpenAIClientWrapper {
       });
       this.modelName = env.LLM_MODEL !== 'gpt-4o-mini' ? env.LLM_MODEL : 'google/gemini-2.0-flash-lite-preview-02-05:free';
       this.providerName = 'openrouter';
-      logger.info('OpenRouter Client initialized successfully');
+
+      const extraKeys = [env.OPENROUTER_API_KEY_2, env.OPENROUTER_API_KEY_3].filter(Boolean) as string[];
+      for (const k of extraKeys) {
+        if (k.trim() !== '') {
+          this.fallbackClients.push(new OpenAI({
+            apiKey: k.trim(),
+            baseURL: 'https://openrouter.ai/api/v1'
+          }));
+        }
+      }
+
+      logger.info(`OpenRouter Client initialized successfully with ${this.fallbackClients.length} fallback keys`);
       return;
     }
 
@@ -169,25 +181,40 @@ export class OpenAIClientWrapper {
 
     // 2. Try OpenAI SDK (for OpenAI, Groq, OpenRouter, or Gemini OpenAI adapter)
     if (this.client) {
-      try {
-        const response = await this.client.chat.completions.create({
-          model: this.modelName,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt }
-          ],
-          temperature: 0.3,
-          ...(jsonMode ? { response_format: { type: 'json_object' } } : {})
-        });
+      const clientsToTry = [this.client, ...this.fallbackClients];
+      
+      for (let i = 0; i < clientsToTry.length; i++) {
+        const currentClient = clientsToTry[i];
+        try {
+          const response = await currentClient.chat.completions.create({
+            model: this.modelName,
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: userPrompt }
+            ],
+            temperature: 0.3,
+            ...(jsonMode ? { response_format: { type: 'json_object' } } : {})
+          });
 
-        const content = response.choices[0]?.message?.content || '';
-        if (content.trim().length > 0) {
-          return content.trim();
+          const content = response.choices[0]?.message?.content || '';
+          if (content.trim().length > 0) {
+            return content.trim();
+          }
+        } catch (openAiErr: any) {
+          const msg = openAiErr instanceof Error ? openAiErr.message : 'LLM API error';
+          logger.error(`LLM SDK completion failed (${this.providerName}/${this.modelName}) with key index ${i}: ${msg}`);
+          openAiError = msg;
+
+          // If it's a 429 error and we have more clients, continue the loop
+          if (i < clientsToTry.length - 1 && (openAiErr?.status === 429 || msg.includes('429'))) {
+            logger.warn(`Switching to fallback LLM key ${i + 1} due to 429 quota error.`);
+            continue;
+          } else if (i < clientsToTry.length - 1) {
+             // If it's another error, also try falling back just in case
+             logger.warn(`Switching to fallback LLM key ${i + 1} due to error.`);
+             continue;
+          }
         }
-      } catch (openAiErr: unknown) {
-        const msg = openAiErr instanceof Error ? openAiErr.message : 'LLM API error';
-        logger.error(`LLM SDK completion failed (${this.providerName}/${this.modelName}): ${msg}`);
-        openAiError = msg;
       }
     }
 
