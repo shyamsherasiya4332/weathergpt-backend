@@ -707,7 +707,7 @@ If the user asks to compare two locations (e.g. "difference between Ahmedabad an
     }
 
     const fallbackAns = this.generateFallbackAnswer(question, nlu, weatherData, rainAnalysis, targetDateStr);
-    return fallbackAns + (debugError ? `\n\n(DEBUG - LLM ERROR: ${debugError})` : '');
+    return fallbackAns;
   }
 
   private generateFallbackAnswer(
@@ -1003,7 +1003,7 @@ Instructions:
     else if (isMr) fallback = `मी WeatherGPT एक AI सहाय्यक आहे. 🌤️ मी हवामानासोबतच आपल्या कोणत्याही प्रश्नाचे उत्तर देण्यास तयार आहे. आपण मला कोणत्याही विषयावर विचारू शकता! 🙏`;
     else fallback = `I am WeatherGPT, an AI Assistant. 🌤️ I am here to help you with live weather forecasts, agricultural tips, and answer any questions you have. Feel free to ask! 🙏`;
 
-    return fallback + (debugError ? `\n\n(DEBUG - LLM ERROR: ${debugError})` : '');
+    return fallback;
   }
 
   private appendFollowupSuggestion(rawAnswer: string, language: string, question: string): string {
