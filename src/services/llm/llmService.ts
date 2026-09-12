@@ -575,7 +575,7 @@ Extract JSON:
     }
 
     const isExplicitOffTopic = /what\s*is\s*my\s*name|maru\s*naa?m|mera\s*naa?m|who\s*am\s*i|my\s*age|maru\s*nam|mera\s*nam|who\s*are\s*you|tamaru\s*naam|aapka\s*naam|who\s*made\s*you|kone\s*banavya|kisine\s*banaya|who\s*created|tell\s*me\s*a?\s*joke|chutkule|joke\s*suno|tell\s*story|kahani|recipe|cook|capital\s*of|prime\s*minister|pm\s*of|president|who\s*is\s*the|calculate|2\s*\+\s*2|math|programming|write\s*a?\s*code|song\s*suno|gana\s*gao|song|movie|cinema|how\s*are\s*you|kem\s*cho|kaisa\s*ho|majama|fine|good|bad|thank\s*you|thanks|dhanyawad|aabhar/i.test(question);
-    const hasWeatherKeywords = /weather|havaman|vatavaran|mausam|hawa|rain|varsad|barish|garmi|bafaro|thandi|tapman|taapman|temp|temperature|cloud|vadal|badal|sun|tado|dhoop|climate|chhatri|umbrella|storm|toofan|cyclone|flood|pur|wind|pawan|pavan|humidity|uv|degree|ડિગ્રી|ઝાપટાં|ઝાપટું|કાલ|આજ|સાંજ|સવાર|બપોર|રાત|kal|kale|kalnu|aaj|aaje|aajnu|sanj|sanje|savare|bapore|ratre|kevuk?|su\s*hase|kevu\s*chhe/i.test(question);
+    const hasWeatherKeywords = /weather|havaman|vatavaran|mausam|hawa|rain|varsad|barish|garmi|bafaro|thandi|tapman|taapman|temp|temperature|cloud|vadal|badal|sun|tado|dhoop|climate|chhatri|umbrella|storm|toofan|cyclone|flood|pur|wind|pawan|pavan|humidity|uv|degree|ડિગ્રી|ઝાપટાં|ઝાપટું|કાલ|આજ|સાંજ|સવાર|બપોર|રાત|kal|kale|kalnu|aaj|aaje|aajnu|sanj|sanje|savare|bapore|ratre|kevuk?|su\s*hase|kevu\s*chhe|hour|hourly|kalak|ghante|samay|time/i.test(question);
 
     if (isExplicitOffTopic || (intent === 'general_forecast' && !hasWeatherKeywords && !locationName && targetDate === 'today' && !/^(?:how|kevu|kaisa|kaha|kya|su|chhe|hai|kal|aaj)\b/i.test(question.trim()))) {
       intent = 'unknown';
@@ -656,6 +656,11 @@ If language is 'gu' or Gujarati, use pure Gujarati script. If Hindi, use pure De
     const minTemp = weatherData.daily[0]?.temperatureMin ? Math.round(weatherData.daily[0].temperatureMin) : Math.round(weatherData.current.temperature);
     const maxTemp = weatherData.daily[0]?.temperatureMax ? Math.round(weatherData.daily[0].temperatureMax) : Math.round(weatherData.current.temperature);
 
+    const morningStats = getTimeRangeStats(weatherData, targetDateStr, 'morning', { startHour: 6, endHour: 12 });
+    const afternoonStats = getTimeRangeStats(weatherData, targetDateStr, 'afternoon', { startHour: 12, endHour: 17 });
+    const eveningStats = getTimeRangeStats(weatherData, targetDateStr, 'evening', { startHour: 17, endHour: 21 });
+    const nightStats = getTimeRangeStats(weatherData, targetDateStr, 'night', { startHour: 21, endHour: 6 });
+
     const userPromptPayload = `User Question: "${question}"
 User Language: ${nlu.language === 'gu' ? 'Gujarati' : nlu.language === 'hi' ? 'Hindi' : 'English'}
 
@@ -668,7 +673,12 @@ Weather API Data:
   * Rain Probability: ${rainAnalysis.maxRainProbability}% (${rainAnalysis.maxRainProbability >= 60 ? 'શક્યતા વધુ છે / likely' : rainAnalysis.maxRainProbability >= 30 ? 'શક્યતા છે / possible' : 'શક્યતા ઓછી છે / unlikely'})
   * Expected Rainfall: ${rainAnalysis.totalRainAmountMm} mm
   * Expected Sky Condition: ${weatherData.daily[0]?.condition || weatherData.current.condition}
-${rainAnalysis.peakRainTimeWindow ? `  * Peak Rain Time Window: ${rainAnalysis.peakRainTimeWindow}` : ''}`;
+${rainAnalysis.peakRainTimeWindow ? `  * Peak Rain Time Window: ${rainAnalysis.peakRainTimeWindow}` : ''}
+- Time-of-Day Breakdown (Use if user asks for hourly/time-wise data):
+  * Morning (06:00-12:00): ${morningStats.minTemp}-${morningStats.maxTemp}°C, ${morningStats.condition}, Rain Prob: ${morningStats.maxRainProb}%
+  * Afternoon (12:00-17:00): ${afternoonStats.minTemp}-${afternoonStats.maxTemp}°C, ${afternoonStats.condition}, Rain Prob: ${afternoonStats.maxRainProb}%
+  * Evening (17:00-21:00): ${eveningStats.minTemp}-${eveningStats.maxTemp}°C, ${eveningStats.condition}, Rain Prob: ${eveningStats.maxRainProb}%
+  * Night (21:00-06:00): ${nightStats.minTemp}-${nightStats.maxTemp}°C, ${nightStats.condition}, Rain Prob: ${nightStats.maxRainProb}%`;
 
     if (openAIClient.isConfigured()) {
       try {
