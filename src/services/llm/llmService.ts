@@ -766,6 +766,8 @@ If the user asks to compare two locations (e.g. "difference between Ahmedabad an
     const rainLikelihoodEn = rainProb >= 60 ? 'likely' : rainProb >= 30 ? 'possible' : 'unlikely';
 
     // Gujarati Response Handling
+    const gujCond = translateConditionToGujarati(stats.condition);
+
     if (nlu.intent === 'WEATHER_COMPARISON' && nlu.secondaryLocationName) {
       if (isGujarati) {
         return `${loc} અને ${nlu.secondaryLocationName} બંને જગ્યાના હવામાનમાં તફાવત છે. ${loc} માં અત્યારે ${minTemp}°C થી ${maxTemp}°C તાપમાન છે અને વાતાવરણ ${gujCond} છે. (નોંધ: વધુ સચોટ સરખામણી માટે AI ની રાહ જુઓ).`;
@@ -774,8 +776,6 @@ If the user asks to compare two locations (e.g. "difference between Ahmedabad an
     }
 
     if (isGujarati) {
-      const gujCond = translateConditionToGujarati(stats.condition);
-
       if (isRainQuery) {
         if (rainProb >= 50) {
           return `${loc} માં ${dateLabelGu.toLowerCase()} વરસાદ પડવાની શક્યતા વધુ છે (આશરે ${rainProb}% સંભાવના). બહાર નીકળતી વખતે સાથે છત્રી કે રેઈનકોટ રાખવો હિતાવહ છે.`;

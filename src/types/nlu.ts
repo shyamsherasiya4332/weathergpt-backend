@@ -49,6 +49,7 @@ export interface LocationEntity {
 export interface ParsedNLU {
   intent: WeatherIntent;
   locationName?: string;
+  secondaryLocationName?: string;
   location?: StructuredLocation | null;
   isLocationNeeded: boolean;
   needsPreviousContext: boolean;
