@@ -91,6 +91,9 @@ export class WeatherController {
       if (nlu.intent === 'greeting' || isGreetingPattern) {
         logger.info(`Handling greeting intent for query: "${cleanQuestion}"`);
         const greetingAns = await llmService.generateGreeting(cleanQuestion, nlu.language);
+        if (convContext) {
+          conversationService.updateConversation(convContext.id, { lastAnswer: greetingAns, lastQuestion: cleanQuestion, turnCount: (convContext.turnCount || 0) + 1 });
+        }
         res.json({
           success: true,
           answer: greetingAns,
@@ -104,7 +107,10 @@ export class WeatherController {
       // Check Off-Topic / Unknown Intent (e.g. "what is my name", "who are you", "tell me a joke", "who is PM")
       if (nlu.intent === 'unknown') {
         logger.info(`Handling off-topic unknown intent for query: "${cleanQuestion}"`);
-        const offTopicAns = await llmService.generateOffTopicResponse(cleanQuestion, nlu.language);
+        const offTopicAns = await llmService.generateOffTopicResponse(cleanQuestion, nlu.language, convContext?.lastAnswer);
+        if (convContext) {
+          conversationService.updateConversation(convContext.id, { lastAnswer: offTopicAns, lastQuestion: cleanQuestion, turnCount: (convContext.turnCount || 0) + 1 });
+        }
         res.json({
           success: true,
           answer: offTopicAns,
@@ -209,6 +215,10 @@ export class WeatherController {
         const riskScores = riskService.calculateRiskScores(weatherData, rainAnalysis);
         const timelineData = timelineService.generateTimeline(weatherData, targetDateStr);
 
+        if (convContext) {
+          conversationService.updateConversation(convContext.id, { lastAnswer: breakdownAnswer, lastQuestion: cleanQuestion, turnCount: (convContext.turnCount || 0) + 1 });
+        }
+
         res.json({
           success: true,
           answer: breakdownAnswer,
@@ -243,6 +253,9 @@ export class WeatherController {
       if (llmService.isNationalOrComparativeWeatherQuery(cleanQuestion)) {
         logger.info(`Matched national/comparative query: "${cleanQuestion}"`);
         const natAnswer = await llmService.generateNationalOrComparativeAnswer(cleanQuestion, nlu.language);
+        if (convContext) {
+          conversationService.updateConversation(convContext.id, { lastAnswer: natAnswer, lastQuestion: cleanQuestion, turnCount: (convContext.turnCount || 0) + 1 });
+        }
         res.json({
           success: true,
           answer: natAnswer,
@@ -479,6 +492,10 @@ export class WeatherController {
         turnCount: convContext.turnCount || 1,
         lastUpdated: new Date().toISOString()
       };
+
+      conversationService.updateConversation(convContext.id, {
+        lastAnswer: answer
+      });
 
       // 9. Return Enriched Production JSON Response
       const responsePayload: AskResponseSuccess = {

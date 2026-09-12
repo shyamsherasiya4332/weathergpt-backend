@@ -9,6 +9,7 @@ export interface ConversationContext {
   timezone?: string;
   language?: string;
   lastQuestion?: string;
+  lastAnswer?: string;
   lastWeatherData?: any;  // cached weather data from last query
   turnCount: number;
   createdAt: number;      // timestamp ms

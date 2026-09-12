@@ -939,7 +939,7 @@ ${rainAnalysis.peakRainTimeWindow ? `  * Peak Rain Time Window: ${rainAnalysis.p
     return pool[randomIndex];
   }
 
-  async generateOffTopicResponse(question: string, language: string): Promise<string> {
+  async generateOffTopicResponse(question: string, language: string, lastAnswer?: string): Promise<string> {
     const fullLangName = languageService.getLanguageName(language);
 
     const isPa = language === 'pa' || /[\u0A00-\u0A7F]/.test(question);
@@ -964,14 +964,15 @@ ${rainAnalysis.peakRainTimeWindow ? `  * Peak Rain Time Window: ${rainAnalysis.p
     if (openAIClient.isConfigured()) {
       try {
         const prompt = `You are WeatherGPT, a helpful, highly intelligent, multi-talented AI assistant.
-User Question: "${question}"
+${lastAnswer ? `Previous AI Response Context:\n"""\n${lastAnswer}\n"""\n` : ''}User Question: "${question}"
 Target Language: ${fullLangName} (${language})
 
 Instructions:
 1. Provide a direct, comprehensive, accurate, and friendly answer to the user's question in ${fullLangName}.
 2. Use the exact script and language (${fullLangName}) matching the user's query (Gujarati in Gujarati, Hindi in Hindi, English in English, etc.).
 3. NEVER refuse to answer or say you only answer weather questions. Be fully responsive, warm, and helpful for whatever the user asks.
-4. Keep the tone conversational, helpful, and concise with clean markdown formatting and friendly emojis.`;
+4. Keep the tone conversational, helpful, and concise with clean markdown formatting and friendly emojis.
+5. If the user asks you to translate, explain, or clarify "this" or "that", they are referring to the Previous AI Response Context provided above.`;
 
         const res = await openAIClient.generateChatCompletion(
           'You are WeatherGPT, a highly responsive, helpful AI assistant.',
