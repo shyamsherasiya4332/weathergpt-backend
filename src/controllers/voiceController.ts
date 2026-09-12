@@ -54,10 +54,10 @@ export class VoiceController {
         if (audioStr.startsWith('data:audio/')) {
           mimeType = audioStr.split(';')[0].substring(5);
         }
-      } else if ((req as any).file || (req as any).files) {
+      } else if ((req as any).file || ((req as any).files && (req as any).files.length > 0)) {
         // Just in case multer gets added later
-        const file = (req as any).file || (req as any).files?.audio || (req as any).files?.[0];
-        if (file) {
+        const file = (req as any).file || (req as any).files[0];
+        if (file && file.buffer) {
           audioBuffer = file.buffer;
           mimeType = file.mimetype;
         } else {
