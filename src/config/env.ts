@@ -41,6 +41,7 @@ const envSchema = z.object({
   CONVERSATION_TTL_MINUTES: z.coerce.number().default(30),
 
   // Voice / TTS
+  OPENAI_VOICE_API_KEY: z.string().optional(),
   TTS_MODEL: z.string().default('tts-1'),
   TTS_VOICE: z.string().default('alloy'),
   WHISPER_MODEL: z.string().default('whisper-1')

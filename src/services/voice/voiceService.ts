@@ -20,7 +20,7 @@ export class VoiceService {
   constructor() {
     if (this.isConfigured()) {
       this.openai = new OpenAI({
-        apiKey: env.OPENAI_API_KEY,
+        apiKey: env.OPENAI_VOICE_API_KEY || env.OPENAI_API_KEY,
         baseURL: env.OPENAI_BASE_URL,
       });
     } else {
@@ -29,7 +29,14 @@ export class VoiceService {
   }
 
   isConfigured(): boolean {
-    return !!env.OPENAI_API_KEY;
+    if (env.OPENAI_VOICE_API_KEY) return true;
+    if (!env.OPENAI_API_KEY) return false;
+    const isGemini = env.OPENAI_API_KEY.startsWith('AIza') || env.OPENAI_API_KEY.startsWith('AQ.');
+    if (isGemini) {
+      logger.warn('Voice features are disabled because a Gemini API key is being used. Whisper and TTS require an OpenAI API key (use OPENAI_VOICE_API_KEY).');
+      return false;
+    }
+    return true;
   }
 
   async transcribe(audioBuffer: Buffer, mimeType: string): Promise<TranscriptionResult> {
