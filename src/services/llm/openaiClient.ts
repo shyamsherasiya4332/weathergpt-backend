@@ -37,7 +37,8 @@ export class OpenAIClientWrapper {
     if (effectiveGeminiKey) {
       this.geminiDirectKey = effectiveGeminiKey;
       this.providerName = 'gemini';
-      this.modelName = env.LLM_MODEL && !env.LLM_MODEL.startsWith('gpt') ? env.LLM_MODEL : 'gemini-2.5-flash';
+      // Upgrade to Pro model for higher intelligence
+      this.modelName = env.LLM_MODEL && !env.LLM_MODEL.startsWith('gpt') ? env.LLM_MODEL : 'gemini-2.5-pro';
       
       try {
         this.client = new OpenAI({
