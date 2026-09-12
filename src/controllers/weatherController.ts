@@ -333,24 +333,11 @@ export class WeatherController {
 
       // Handle location missing or ambiguity
       if (weatherResult.error === 'LOCATION_MISSING') {
-        let askLocMsg = '';
-        if (nlu.language === 'gu') {
-          askLocMsg = isRelativeQuery
-            ? 'તમારું લાઈવ હવામાન મેળવવા માટે કૃપા કરીને તમારા બ્રાઉઝરમાં Location Permission Allow કરો અથવા તમારા શહેરનું નામ જણાવો (દા.ત. "મોરબી" અથવા "રાજકોટ").'
-            : 'કૃપા કરીને તમારું શહેર અથવા સ્થળ જણાવો (દા.ત. "મોરબી" અથવા "રાજકોટ").';
-        } else if (nlu.language === 'hi' || nlu.language === 'hinglish') {
-          askLocMsg = isRelativeQuery
-            ? 'अपना लाइव मौसम जानने के लिए कृपया लोकेशन की अनुमति (Permission) दें या अपने शहर का नाम बताएं (जैसे "मोरबी" या "राजकोट)।'
-            : 'कृपया अपना शहर या स्थान बताएं (जैसे "मोरबी" या "राजकोट")।';
-        } else if (nlu.language === 'mr') {
-          askLocMsg = isRelativeQuery
-            ? 'आपले हवामान पाहण्यासाठी कृपया लोकेशन परवानगी द्या किंवा आपल्या शहराचे नाव सांगा (उदा. "मुंबई" किंवा "पुणे").'
-            : 'कृपया आपले शहर किंवा ठिकाण सांगा (उदा. "मुंबई" किंवा "पुणे").';
-        } else {
-          askLocMsg = isRelativeQuery
-            ? 'To get weather for your current location, please enable location permission in your browser or type your city name (e.g. "Morbi" or "Rajkot").'
-            : 'Please specify your location (city or coordinates) to get live weather forecasts.';
-        }
+        const missPrompt = isRelativeQuery
+          ? `User asked: "${cleanQuestion}". They are asking for local weather but haven't provided location access. Write a very polite, natural 1-sentence message asking them to either allow Location Permissions or type their city name (e.g. Morbi or Rajkot).`
+          : `User asked: "${cleanQuestion}". They forgot to specify which city they want weather for. Write a very polite, natural 1-sentence message asking them which city or location they want to know about.`;
+        
+        const askLocMsg = await llmService.generateOffTopicResponse(missPrompt, nlu.language, convContext?.lastAnswer);
 
         const resp: AskResponseSuccess = {
           success: true,
@@ -364,10 +351,8 @@ export class WeatherController {
       }
 
       if (weatherResult.isAmbiguous) {
-        const ambMsg =
-          nlu.language === 'gu'
-            ? `સ્થળ '${nlu.locationName}' માટે બહુવિધ પરિણામો મળ્યા. કૃપા કરીને રાજ્ય અથવા દેશ સ્પષ્ટ કરો.`
-            : `Multiple places matching '${nlu.locationName}' were found. Please clarify state or country.`;
+        const ambPrompt = `User asked: "${cleanQuestion}". We found multiple places named '${nlu.locationName}'. Write a very polite, natural 1-sentence message asking them to clarify which state or country they mean.`;
+        const ambMsg = await llmService.generateOffTopicResponse(ambPrompt, nlu.language, convContext?.lastAnswer);
 
         const resp: AskResponseSuccess = {
           success: true,
@@ -386,13 +371,10 @@ export class WeatherController {
 
       if (!weatherResult.weatherData || !weatherResult.location) {
         const notFoundName = extractedName || finalLocationInput?.name || cleanQuestion;
-        let politeMsg = `I'm sorry, I couldn't find the location '${notFoundName}'. Could you please check the spelling or provide more details like the state or country?`;
         
-        if (nlu.language === 'gu' || convContext?.language === 'gu') {
-          politeMsg = `માફ કરશો, મને '${notFoundName}' નામનું લોકેશન મળ્યું નથી. કૃપા કરીને સ્પેલિંગ તપાસો અથવા રાજ્ય/જિલ્લાનું નામ ઉમેરીને ફરી પૂછો.`;
-        } else if (nlu.language === 'hi' || convContext?.language === 'hi') {
-          politeMsg = `माफ़ करें, मुझे '${notFoundName}' नाम की लोकेशन नहीं मिली। कृपया स्पेलिंग चेक करें या राज्य/ज़िले का नाम जोड़कर फिर से पूछें।`;
-        }
+        // Generate dynamic polite error via LLM to handle typos gracefully
+        const errPrompt = `User asked: "${cleanQuestion}". We could not find the location "${notFoundName}" in the database. Write a polite apology asking them to verify the spelling or provide more details. If "${notFoundName}" looks like a typo of a known Indian city or state (e.g. 'Rajastahn' -> 'Rajasthan'), suggest the correct spelling. DO NOT provide fake weather.`;
+        const politeMsg = await llmService.generateOffTopicResponse(errPrompt, nlu.language, convContext?.lastAnswer);
 
         const resp: AskResponseSuccess = {
           success: true,
