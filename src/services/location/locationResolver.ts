@@ -119,8 +119,8 @@ export class LocationResolver {
       structured,
       confidence: 'exact',
       needsClarification: false,
-      needsCityClarification: isBroad,
-      cityClarificationMessage: isBroad ? cityPromptForState(entry) : undefined,
+      needsCityClarification: false,
+      cityClarificationMessage: undefined,
       representativeCity: entry.representativeCity,
       matches: [location]
     };

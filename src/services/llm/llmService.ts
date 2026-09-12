@@ -1055,6 +1055,17 @@ Instructions:
     }
 
     let fallback = '';
+    // If this was an internal system prompt for missing/ambiguous location, extract the hint!
+    if (question.includes('Use this hint to ask them a polite question: "')) {
+      const hintMatch = question.match(/Use this hint to ask them a polite question: "(.*?)"/);
+      if (hintMatch) return hintMatch[1];
+    }
+    if (question.includes('asking them to either allow Location Permissions or type their city name')) {
+      return isGu ? "કૃપા કરીને તમારું શહેર અથવા ગામનું નામ જણાવો (દા.ત. મોરબી, સુરત)." : 
+             isHi ? "कृपया अपने शहर या गांव का नाम बताएं (जैसे सूरत, दिल्ली)।" : 
+             "Please tell me the name of your city or village.";
+    }
+
     if (isPa) fallback = `ਮੈਂ WeatherGPT ਤੁਹਾਡਾ ਏਆਈ ਅਸਿਸਟੈਂਟ ਹਾਂ। 🌤️ ਮੈਂ ਤੁਹਾਡੇ ਹਰ ਸਵਾਲ ਦਾ ਜਵਾਬ ਦੇਣ ਅਤੇ ਮੌਸਮ ਬਾਰੇ ਜਾਣਕਾਰੀ ਦੇਣ ਲਈ ਹਾਜ਼ਰ ਹਾਂ। ਕਿਰਪਾ ਕਰਕੇ ਕੋਈ ਵੀ ਸਵਾਲ ਪੁੱਛੋ! 🙏`;
     else if (isGu) fallback = `હું WeatherGPT એક એઆઈ આસિસ્ટન્ટ છું. 🌤️ હું તમને હવામાનની સાથે સાથે કોઈપણ માહિતી કે પ્રશ્નનો જવાબ આપવામાં મદદ કરી શકું છું. તમે મને કોઈપણ શહેરના હવામાન કે અન્ય વિષય વિશે પૂછી શકો છો! 🙏`;
     else if (isHi) fallback = `मैं WeatherGPT एक एआई असिस्टेंट हूँ। 🌤️ मैं मौसम के साथ-साथ आपके किसी भी सवाल का जवाब देने में आपकी पूरी सहायता कर सकता हूँ। आप मुझसे मौसम या किसी भी विषय पर पूछ सकते हैं! 🙏`;
