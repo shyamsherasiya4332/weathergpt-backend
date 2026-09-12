@@ -766,6 +766,13 @@ If the user asks to compare two locations (e.g. "difference between Ahmedabad an
     const rainLikelihoodEn = rainProb >= 60 ? 'likely' : rainProb >= 30 ? 'possible' : 'unlikely';
 
     // Gujarati Response Handling
+    if (nlu.intent === 'WEATHER_COMPARISON' && nlu.secondaryLocationName) {
+      if (isGujarati) {
+        return `${loc} અને ${nlu.secondaryLocationName} બંને જગ્યાના હવામાનમાં તફાવત છે. ${loc} માં અત્યારે ${minTemp}°C થી ${maxTemp}°C તાપમાન છે અને વાતાવરણ ${gujCond} છે. (નોંધ: વધુ સચોટ સરખામણી માટે AI ની રાહ જુઓ).`;
+      }
+      return `There is a noticeable difference in weather between ${loc} and ${nlu.secondaryLocationName}. In ${loc}, the temperature ranges from ${minTemp}°C to ${maxTemp}°C with ${stats.condition.toLowerCase()} conditions. (Note: Detailed AI comparison is currently offline).`;
+    }
+
     if (isGujarati) {
       const gujCond = translateConditionToGujarati(stats.condition);
 

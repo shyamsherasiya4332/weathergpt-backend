@@ -80,7 +80,8 @@ export class VoiceService {
         model: 'tts-1',
         voice: 'alloy',
         input: text,
-        response_format: 'mp3'
+        response_format: 'mp3',
+        speed: 0.85
       });
 
       const arrayBuffer = await response.arrayBuffer();
