@@ -105,6 +105,25 @@ export class WeatherController {
         return;
       }
 
+      // Intercept 'Yesterday' queries (Since we are a forecasting app, we don't have past data natively cached without extra API calls)
+      if (/gai\s*kale|gai\s*kal|gai\s*kale|bita\s*kal|yesterday|gayi\s*kal|gayi\s*kale|ગઈકાલે|ગઈકાલ|ગઈ\s*કાલે|बीता\s*कल|कल\s*का/i.test(cleanQuestion)) {
+        const isGujarati = nlu.language === 'gu' || /[\u0A80-\u0AFF]/.test(cleanQuestion);
+        const isHindi = nlu.language === 'hi' || /[\u0900-\u097F]/.test(cleanQuestion);
+        
+        let yesterdayAns = "I am a forecasting AI assistant. I can predict today's and tomorrow's weather, but I do not store yesterday's past weather data. How can I help you with today's weather?";
+        if (isGujarati) yesterdayAns = "માફ કરશો, હું એક ભવિષ્યવાણી (Forecasting) આસિસ્ટન્ટ છું. હું માત્ર આજની અને આવતીકાલની માહિતી આપી શકું છું. મારી પાસે ગઈકાલનો જૂનો ડેટા નથી. શું હું તમને આજના હવામાન વિશે જણાવું?";
+        else if (isHindi) yesterdayAns = "क्षमा करें, मैं एक भविष्यवाणी (Forecasting) असिस्टेंट हूँ। मैं केवल आज और कल की जानकारी दे सकता हूँ। मेरे पास बीते हुए कल का डेटा नहीं है। क्या मैं आपको आज के मौसम के बारे में बताऊँ?";
+
+        res.json({
+          success: true,
+          answer: yesterdayAns,
+          language: nlu.language,
+          conversationId: convContext?.id,
+          generated_at: new Date().toISOString()
+        });
+        return;
+      }
+
       // Check Off-Topic / Unknown Intent (e.g. "what is my name", "who are you", "tell me a joke", "who is PM")
       if (nlu.intent === 'UNKNOWN' || nlu.intent === 'unknown' || nlu.intent === 'TRANSLATION' || nlu.intent === 'EXPLANATION') {
         logger.info(`Handling off-topic unknown intent for query: "${cleanQuestion}"`);
