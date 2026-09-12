@@ -485,7 +485,12 @@ export class WeatherController {
       };
 
       conversationService.updateConversation(convContext.id, {
-        lastAnswer: answer
+        lastAnswer: answer,
+        lastWeatherData: weatherData,
+        locationName: weatherData.location.name,
+        latitude: weatherData.location.latitude,
+        longitude: weatherData.location.longitude,
+        timezone: weatherData.location.timezone
       });
 
       // 9. Return Enriched Production JSON Response
