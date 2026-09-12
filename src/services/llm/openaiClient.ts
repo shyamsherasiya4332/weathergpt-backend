@@ -83,7 +83,7 @@ export class OpenAIClientWrapper {
         apiKey: rawOpenRouter,
         baseURL: 'https://openrouter.ai/api/v1'
       });
-      this.modelName = env.LLM_MODEL !== 'gpt-4o-mini' ? env.LLM_MODEL : 'meta-llama/llama-3.3-70b-instruct';
+      this.modelName = env.LLM_MODEL !== 'gpt-4o-mini' ? env.LLM_MODEL : 'google/gemini-2.0-flash-lite-preview-02-05:free';
       this.providerName = 'openrouter';
       logger.info('OpenRouter Client initialized successfully');
       return;
