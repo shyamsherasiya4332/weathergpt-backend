@@ -51,15 +51,7 @@ function isExplanationFollowup(question: string): boolean {
 }
 
 function extractLocation(question: string): StructuredLocation | null {
-  const gazetteerHit = findGazetteerInText(question);
-  if (gazetteerHit) {
-    return {
-      name: gazetteerHit.name,
-      type: gazetteerHit.type,
-      state: gazetteerHit.state,
-      country: gazetteerHit.country
-    };
-  }
+
 
   const followupPlace = question.match(/\b(?:what\s+about|how\s+about|and)\s+([A-Za-z\u0A80-\u0AFF\u0900-\u097F]{2,40})\??$/i);
   if (followupPlace) {
@@ -77,6 +69,7 @@ function extractLocation(question: string): StructuredLocation | null {
   if (inMatch) {
     let candidate = inMatch[1].trim();
     candidate = candidate.split(/\s+(?:today|tomorrow|tonight|rain|varsad|weather|condition|forecast|please)\b/i)[0].trim();
+    candidate = candidate.replace(/\b(aaj|aaje|kale|kal|parso|paramdivas|havaman|vatavaran|mausam|garmi|thandi|tapman|varsad|barish|weather|now|currently)\b/ig, '').trim();
     candidate = candidate.replace(/[.,?!]+$/g, '').trim();
     const lower = candidate.toLowerCase();
     if (candidate && !NON_LOCATION_TOKENS.has(lower) && !LANGUAGE_NAME_TOKENS.has(lower)) {
@@ -88,13 +81,25 @@ function extractLocation(question: string): StructuredLocation | null {
     }
   }
 
-  const suffixMatch = question.match(/([A-Za-z\u0A80-\u0AFF\u0900-\u097F]{2,30})\s*(?:માં|मां|में|मध्ये)(?:\s|[.,?!]|$)/i);
+  const suffixMatch = question.match(/([A-Za-z\u0A80-\u0AFF\u0900-\u097F][A-Za-z\u0A80-\u0AFF\u0900-\u097F\s]{1,40})\s*(?:માં|मां|में|मध्ये|na|nu|ni|no|ma)(?:\s|[.,?!]|$)/i);
   if (suffixMatch) {
-    const candidate = suffixMatch[1].trim();
-    if (!NON_LOCATION_TOKENS.has(candidate.toLowerCase()) && !LANGUAGE_NAME_TOKENS.has(candidate.toLowerCase())) {
+    let candidate = suffixMatch[1].trim();
+    candidate = candidate.replace(/\b(aaj|aaje|kale|kal|parso|paramdivas|havaman|vatavaran|mausam|garmi|thandi|tapman|varsad|barish|weather|now|currently)\b/ig, '').trim();
+    if (candidate && !NON_LOCATION_TOKENS.has(candidate.toLowerCase()) && !LANGUAGE_NAME_TOKENS.has(candidate.toLowerCase())) {
       const known = lookupGazetteer(candidate);
       if (known) return { name: known.name, type: known.type, state: known.state, country: known.country };
+      return { name: candidate, type: 'unknown' };
     }
+  }
+
+  const gazetteerHit = findGazetteerInText(question);
+  if (gazetteerHit) {
+    return {
+      name: gazetteerHit.name,
+      type: gazetteerHit.type,
+      state: gazetteerHit.state,
+      country: gazetteerHit.country
+    };
   }
 
   return null;

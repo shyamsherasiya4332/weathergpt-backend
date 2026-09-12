@@ -45,6 +45,8 @@ interface OpenMeteoGeocodingItem {
   timezone?: string;
   country?: string;
   admin1?: string; // State / Region
+  admin2?: string;
+  admin3?: string;
 }
 
 export class OpenMeteoGeocodingProvider implements IGeocodingProvider {
@@ -74,9 +76,9 @@ export class OpenMeteoGeocodingProvider implements IGeocodingProvider {
 
       let results = response.data.results;
 
-      // Fallback: If 0 results for multi-word queries like "Rajkot Gujarat", strip state/country names and retry
+      // Fallback 1: Strip state/country names and retry
       if (!results || results.length === 0) {
-        const cleanedName = trimmed
+        let cleanedName = trimmed
           .replace(/\b(?:gujarat|maharashtra|rajasthan|punjab|haryana|delhi|karnataka|kerala|tamilnadu|tamil nadu|andhra|telangana|west bengal|bengal|odisha|orissa|assam|bihar|jharkhand|chhattisgarh|madhya pradesh|uttar pradesh|uttarakhand|himachal|jammu|kashmir|ladakh|goa|tripura|meghalaya|manipur|nagaland|mizoram|sikkim|arunachal|puducherry|chandigarh|andaman|nicobar|lakshadweep|india|bharat)\b/gi, '')
           .trim();
 
@@ -84,17 +86,38 @@ export class OpenMeteoGeocodingProvider implements IGeocodingProvider {
           logger.info(`Geocoding fallback retry: '${trimmed}' -> '${cleanedName}'`);
           const retryResponse = await axios.get<{ results?: OpenMeteoGeocodingItem[] }>(
             `${env.GEOCODING_API_BASE_URL}/search`,
-            {
-              params: {
-                name: cleanedName,
-                count: 20,
-                language: 'en',
-                format: 'json'
-              },
-              timeout: 6000
-            }
+            { params: { name: cleanedName, count: 20, language: 'en', format: 'json' }, timeout: 6000 }
           );
           results = retryResponse.data.results;
+        }
+        
+        // Fallback 2: If STILL no results, and it's a multi-word query like "Rapar Morbi", search just the first word ("Rapar")
+        if ((!results || results.length === 0) && trimmed.includes(' ')) {
+           const firstWord = trimmed.split(' ')[0].trim();
+           if (firstWord.length >= 3) {
+             logger.info(`Geocoding fallback retry (first word): '${trimmed}' -> '${firstWord}'`);
+             const retryWordResp = await axios.get<{ results?: OpenMeteoGeocodingItem[] }>(
+               `${env.GEOCODING_API_BASE_URL}/search`,
+               { params: { name: firstWord, count: 20, language: 'en', format: 'json' }, timeout: 6000 }
+             );
+             
+             // If we found results for the first word, try to find one that matches the rest of the string (e.g. Morbi) in its admin fields
+             if (retryWordResp.data.results && retryWordResp.data.results.length > 0) {
+               const restOfStr = trimmed.substring(firstWord.length).trim().toLowerCase();
+               const refinedMatch = retryWordResp.data.results.find(r => 
+                 (r.admin1 && restOfStr.includes(r.admin1.toLowerCase())) || 
+                 (r.admin2 && restOfStr.includes(r.admin2.toLowerCase())) || 
+                 (r.admin3 && restOfStr.includes(r.admin3.toLowerCase())) ||
+                 restOfStr.includes('gujarat')
+               );
+               
+               if (refinedMatch) {
+                 results = [refinedMatch];
+               } else {
+                 results = retryWordResp.data.results;
+               }
+             }
+           }
         }
       }
 

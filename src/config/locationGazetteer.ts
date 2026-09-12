@@ -447,7 +447,9 @@ export const NON_LOCATION_TOKENS = new Set([
   'wind',
   'current',
   'condition',
-  'conditions'
+  'conditions',
+  'aaj', 'aaje', 'kale', 'kal', 'parso', 'paramdivase', 'varsad', 'barish', 'havaman', 'vatavaran', 'mausam',
+  'garmi', 'thandi', 'taapman', 'tapman', 'kevu', 'kaisa', 'su', 'kya', 'chhe', 'hai', 'bapore', 'savare', 'sanje', 'ratre'
 ]);
 
 const byAlias = new Map<string, GazetteerEntry>();
