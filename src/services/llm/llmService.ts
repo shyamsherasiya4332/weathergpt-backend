@@ -347,7 +347,8 @@ Extract JSON:
           timeRange: parsed.timeRange || 'full_day',
           specificTimeRange: parsed.specificTimeRange || undefined,
           language: language,
-          confidence: 0.95
+          confidence: 0.95,
+          needsPreviousContext: false
         };
       } catch (error) {
         logger.warn('NLU parsing via LLM failed, using heuristic parser:', error);
@@ -591,7 +592,8 @@ Extract JSON:
       timeRange,
       specificTimeRange,
       language,
-      confidence: 0.85
+      confidence: 0.85,
+      needsPreviousContext: false
     };
   }
 

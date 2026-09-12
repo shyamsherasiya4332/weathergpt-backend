@@ -12,6 +12,7 @@ import { weatherService } from '../services/weather/weatherService.js';
 import { climateService } from '../services/climate/climateService.js';
 import { imageService } from '../services/image/imageService.js';
 import { notificationService } from '../services/notification/notificationService.js';
+import { intentService } from '../services/intent/intentService.js';
 import { moesService } from '../services/moes/moesService.js';
 import { airQualityService } from '../services/airQuality/airQualityService.js';
 import { disasterService } from '../services/disaster/disasterService.js';
@@ -82,13 +83,13 @@ export class WeatherController {
 
       // 3. NLU & Intent parsing
       const tNluStart = Date.now();
-      const nlu = await llmService.parseNLU(cleanQuestion, locationInput);
+      const nlu = await intentService.detect(cleanQuestion, convContext?.lastWeatherData?.location || locationInput);
       nlu.language = effectiveLanguage;
       const tNlu = Date.now() - tNluStart;
 
-      // Check Greeting Intent (e.g. "hello", "hi", "kem cho", "namaste", "halo", "ram ram")
+      // Check Greeting Intent
       const isGreetingPattern = /^(?:hello|hi|hey|helo|kem\s*cho|namaste|namaskar|halo|ram\s*ram|su\s*prabhat|good\s*morning|good\s*evening|good\s*afternoon|good\s*night|pranam|jay\s*shree\s*krishna|har\s*har\s*mahadev|kaisa\s*ho|નમસ્તે|નમસ્કાર|કેમ\s*છો|હલો|પ્રણામ|હાય|હેલો|હરિ\s*ઓમ)\b/i.test(cleanQuestion.trim());
-      if (nlu.intent === 'greeting' || isGreetingPattern) {
+      if (nlu.intent === 'GREETING' || nlu.intent === 'greeting' || isGreetingPattern) {
         logger.info(`Handling greeting intent for query: "${cleanQuestion}"`);
         const greetingAns = await llmService.generateGreeting(cleanQuestion, nlu.language);
         if (convContext) {
@@ -105,7 +106,7 @@ export class WeatherController {
       }
 
       // Check Off-Topic / Unknown Intent (e.g. "what is my name", "who are you", "tell me a joke", "who is PM")
-      if (nlu.intent === 'unknown') {
+      if (nlu.intent === 'UNKNOWN' || nlu.intent === 'unknown' || nlu.intent === 'TRANSLATION' || nlu.intent === 'EXPLANATION') {
         logger.info(`Handling off-topic unknown intent for query: "${cleanQuestion}"`);
         const offTopicAns = await llmService.generateOffTopicResponse(cleanQuestion, nlu.language, convContext?.lastAnswer);
         if (convContext) {
@@ -123,7 +124,7 @@ export class WeatherController {
 
       // Check Affirmative Follow-up (e.g. "yes", "ha", "haan", "હા", "हाँ", "ok", "sure", "bato")
       const isAffirmative = /^(?:yes|ha|haan|haa|haanji|હા|हाँ|ok|okay|sure|yeah|yep|yup|hange|true|bato|kaho|aapo|ha\s+bato|ha\s+aapo|baporo|sanj)$/i.test(cleanQuestion.trim());
-      if ((nlu.intent === 'follow_up_time_breakdown' || isAffirmative) && convContext?.lastWeatherData) {
+      if ((nlu.intent === 'FOLLOW_UP_TIME_BREAKDOWN' || nlu.intent === 'follow_up_time_breakdown' || isAffirmative) && convContext?.lastWeatherData) {
         logger.info(`Handling affirmative follow-up query for location '${convContext.locationName}'`);
         const weatherData = convContext.lastWeatherData;
         const targetDateStr = weatherData.daily[0]?.date || new Date().toISOString().split('T')[0];
@@ -288,7 +289,7 @@ export class WeatherController {
       const festivalMatch = matchFestival(cleanQuestion);
       if (festivalMatch) {
         logger.info(`Matched festival/event '${festivalMatch.festival.name}' (${festivalMatch.dateRange.start})`);
-        nlu.intent = 'general_forecast';
+        nlu.intent = 'GENERAL_WEATHER';
         nlu.targetDate = 'specific_date';
         nlu.specificDateStr = festivalMatch.dateRange.start;
       }
@@ -350,8 +351,9 @@ export class WeatherController {
         return;
       }
 
-      if (weatherResult.isAmbiguous) {
-        const ambPrompt = `User asked: "${cleanQuestion}". We found multiple places named '${nlu.locationName}'. Write a very polite, natural 1-sentence message asking them to clarify which state or country they mean.`;
+      if (weatherResult.isAmbiguous || weatherResult.needsCityClarification) {
+        const clarificationHint = weatherResult.clarificationMessage || weatherResult.cityClarificationMessage || `Please clarify the state or city for ${nlu.location?.name || nlu.locationName}.`;
+        const ambPrompt = `User asked: "${cleanQuestion}". The location is ambiguous or too broad (like a state). Use this hint to ask them a polite question: "${clarificationHint}". Keep it to 1-2 natural sentences. Do NOT provide fake weather data.`;
         const ambMsg = await llmService.generateOffTopicResponse(ambPrompt, nlu.language, convContext?.lastAnswer);
 
         const resp: AskResponseSuccess = {
@@ -612,7 +614,7 @@ export class WeatherController {
       }
 
       const weatherData = weatherResult.weatherData;
-      const rainAnalysis = weatherService.analyzeRainForecast(weatherData, { intent: 'general_forecast', isLocationNeeded: true, language: lang, confidence: 1 });
+      const rainAnalysis = weatherService.analyzeRainForecast(weatherData, { intent: 'GENERAL_WEATHER', isLocationNeeded: true, language: lang, confidence: 1, needsPreviousContext: false });
       const riskScores = riskService.calculateRiskScores(weatherData, rainAnalysis);
       const bulletin = moesService.generateBulletin(weatherData, rainAnalysis, riskScores, lang, `Weather bulletin for ${locationName}`);
 

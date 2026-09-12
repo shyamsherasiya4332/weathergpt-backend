@@ -5,6 +5,35 @@ import { cache } from '../../utils/cache.js';
 import { logger } from '../../utils/logger.js';
 import { GeocodingResult, IGeocodingProvider } from './types.js';
 
+function normalizePlace(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9\u0900-\u0d7f]+/gi, ' ').trim();
+}
+
+function pickStrongestMatch(query: string, locations: ResolvedLocation[]): ResolvedLocation | undefined {
+  const q = normalizePlace(query);
+  const exact = locations.filter((l) => normalizePlace(l.name) === q);
+  if (exact.length > 0) {
+    return (
+      exact.find((l) => l.country?.toLowerCase() === 'india' || l.country?.toLowerCase() === 'in') ||
+      exact[0]
+    );
+  }
+
+  const strong = locations.filter((l) => {
+    const n = normalizePlace(l.name);
+    return n === q || n.startsWith(`${q} `) || q.startsWith(`${n} `);
+  });
+  if (strong.length > 0) {
+    return (
+      strong.find((l) => l.country?.toLowerCase() === 'india' || l.country?.toLowerCase() === 'in') ||
+      strong[0]
+    );
+  }
+
+  // Reject weak prefix matches such as Florida -> Floridablanca
+  return undefined;
+}
+
 interface OpenMeteoGeocodingItem {
   id: number;
   name: string;
@@ -35,7 +64,7 @@ export class OpenMeteoGeocodingProvider implements IGeocodingProvider {
         {
           params: {
             name: trimmed,
-            count: 5,
+            count: 20,
             language: 'en',
             format: 'json'
           },
@@ -58,7 +87,7 @@ export class OpenMeteoGeocodingProvider implements IGeocodingProvider {
             {
               params: {
                 name: cleanedName,
-                count: 5,
+                count: 20,
                 language: 'en',
                 format: 'json'
               },
@@ -136,25 +165,22 @@ export class OpenMeteoGeocodingProvider implements IGeocodingProvider {
         longitude: item.longitude,
         country: item.country,
         state: item.admin1,
-        timezone: item.timezone || 'Asia/Kolkata', // fallback if missing
-        elevation: item.elevation
+        timezone: item.timezone || 'Asia/Kolkata',
+        elevation: item.elevation,
+        locationType: item.feature_code?.startsWith('ADM') ? 'state' : 'city'
       }));
 
-      // Prioritize Indian locations if searching from India / Indic queries
-      const indiaMatch = locations.find(
-        (l) => l.country?.toLowerCase() === 'india' || l.country?.toLowerCase() === 'in'
-      );
-      const selectedLocation = indiaMatch || locations[0];
-
-      // Open-Meteo sorts results by importance / population descending, so locations[0] is the primary match.
-      // We prioritize an Indian match if available, otherwise the top global match.
-      const isAmbiguous = false;
+      const selectedLocation = pickStrongestMatch(trimmed, locations);
+      const isAmbiguous = !selectedLocation && locations.length > 0;
 
       const geocodeResult: GeocodingResult = {
-        success: true,
+        success: Boolean(selectedLocation),
         location: selectedLocation,
         isAmbiguous,
-        matches: locations
+        matches: locations,
+        errorMessage: selectedLocation
+          ? undefined
+          : `I found similar names for '${locationName}' but none were a strong match.`
       };
 
       cache.set(cacheKey, geocodeResult, env.CACHE_TTL_GEOCODING);

@@ -35,7 +35,9 @@ export class DisasterController {
       }
 
       const weatherData = weatherResult.weatherData;
-      const rainAnalysis = weatherService.analyzeRainForecast(weatherData, { intent: 'general_forecast', isLocationNeeded: true, language: 'en', confidence: 1 });
+      const lang = (req.query.lang || req.body.lang || 'en') as string;
+      const nlu = { intent: 'GENERAL_WEATHER' as const, isLocationNeeded: true, language: lang, confidence: 1, needsPreviousContext: false };
+      const rainAnalysis = weatherService.analyzeRainForecast(weatherData, nlu);
       const riskScores = riskService.calculateRiskScores(weatherData, rainAnalysis);
 
       const alerts = disasterService.generateDisasterAlerts(weatherData, rainAnalysis, riskScores);

@@ -27,7 +27,7 @@ export class ComparisonService {
 
       if (res.weatherData) {
         const wd = res.weatherData;
-        const rainAnalysis = weatherService.analyzeRainForecast(wd, { intent: 'general_forecast', isLocationNeeded: true, language: 'en', confidence: 1 });
+        const rainAnalysis = weatherService.analyzeRainForecast(wd, { intent: 'GENERAL_WEATHER', isLocationNeeded: true, language, confidence: 1, needsPreviousContext: false });
         const risks = riskService.calculateRiskScores(wd, rainAnalysis);
 
         items.push({

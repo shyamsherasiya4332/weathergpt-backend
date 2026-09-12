@@ -6,9 +6,9 @@ import { geocodingService } from '../geocoding/geocodingService.js';
 import { openMeteoProvider, OpenMeteoWeatherProvider } from './openMeteoProvider.js';
 import { IWeatherProvider } from './types.js';
 
-import { matchLandmark } from '../../config/landmarks.js';
 import { cache } from '../../utils/cache.js';
 import { logger } from '../../utils/logger.js';
+import { locationResolver } from '../location/locationResolver.js';
 
 export class WeatherService {
   private provider: IWeatherProvider;
@@ -20,30 +20,37 @@ export class WeatherService {
   async resolveAndFetchWeather(
     locationInput?: LocationInput,
     extractedLocationName?: string
-  ): Promise<{ location?: ResolvedLocation; weatherData?: WeatherData; error?: string; isAmbiguous?: boolean; isCached?: boolean }> {
+  ): Promise<{
+    location?: ResolvedLocation;
+    weatherData?: WeatherData;
+    error?: string;
+    isAmbiguous?: boolean;
+    isCached?: boolean;
+    needsCityClarification?: boolean;
+    cityClarificationMessage?: string;
+    clarificationMessage?: string;
+  }> {
     let resolvedLocation: ResolvedLocation | undefined;
+    let needsCityClarification = false;
+    let cityClarificationMessage: string | undefined;
 
-    // 1. If user explicitly asked about a specific location in their question, that takes HIGHEST priority!
     const nameToSearch = extractedLocationName?.trim() || locationInput?.name?.trim();
 
     if (nameToSearch) {
-      // Check if place is a known landmark (e.g. Statue of Unity, Somnath Temple, Gir Forest)
-      const landmarkLocation = matchLandmark(nameToSearch);
-      if (landmarkLocation) {
-        logger.info(`Matched landmark '${nameToSearch}' -> ${landmarkLocation.name}`);
-        resolvedLocation = landmarkLocation;
-      } else {
-        const geoResult = await geocodingService.geocode(nameToSearch);
-        if (!geoResult.success || !geoResult.location) {
-          return { error: geoResult.errorMessage || `Unknown location '${nameToSearch}'` };
-        }
-
-        if (geoResult.isAmbiguous) {
-          return { isAmbiguous: true, error: `Location '${nameToSearch}' is ambiguous.` };
-        }
-
-        resolvedLocation = geoResult.location;
+      const resolved = await locationResolver.resolve(nameToSearch, { preferIndia: true });
+      if (resolved.needsClarification) {
+        return {
+          isAmbiguous: true,
+          error: resolved.errorMessage || 'AMBIGUOUS_LOCATION',
+          clarificationMessage: resolved.clarificationMessage
+        };
       }
+      if (!resolved.success || !resolved.location) {
+        return { error: resolved.errorMessage || `Unknown location '${nameToSearch}'` };
+      }
+      resolvedLocation = resolved.location;
+      needsCityClarification = resolved.needsCityClarification;
+      cityClarificationMessage = resolved.cityClarificationMessage;
     } else if (locationInput?.latitude !== undefined && locationInput?.longitude !== undefined) {
       // 2. No specific city name asked, fallback to GPS coordinates (e.g. browser location or relative query)
       if (locationInput.name) {
@@ -65,7 +72,13 @@ export class WeatherService {
 
     try {
       const weatherData = await this.provider.getWeatherData(resolvedLocation);
-      return { location: weatherData.location, weatherData };
+      weatherData.location = { ...weatherData.location, ...resolvedLocation, timezone: weatherData.location.timezone || resolvedLocation.timezone };
+      return {
+        location: weatherData.location,
+        weatherData,
+        needsCityClarification,
+        cityClarificationMessage
+      };
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : 'Weather fetch error';
       logger.warn(`Live weather API failed for ${resolvedLocation?.name || 'requested location'}: ${msg}. Attempting offline cache fallback...`);
@@ -102,7 +115,7 @@ export class WeatherService {
       const hDate = h.time.split('T')[0];
       if (hDate !== targetDateStr) return false;
       const hour = parseHourFromIso(h.time);
-      return isHourInTimeRange(hour, nlu.timeRange, nlu.specificTimeRange);
+      return isHourInTimeRange(hour, nlu.timeRange as any, nlu.specificTimeRange);
     });
 
     if (matchingHours.length === 0) {
@@ -114,11 +127,17 @@ export class WeatherService {
     let maxProb = 0;
     let totalAmount = 0;
     let peakHourStr = '';
+    let firstRainIso = '';
+    let windowStart = '';
+    let windowEnd = '';
 
     const hourlyBreakdown = matchingHours.map((h) => {
       if (h.precipitationProbability > maxProb) {
         maxProb = h.precipitationProbability;
         peakHourStr = h.time.includes('T') ? h.time.split('T')[1].substring(0, 5) : h.time;
+      }
+      if (!firstRainIso && (h.precipitationProbability >= 40 || h.precipitationAmount >= 0.2)) {
+        firstRainIso = h.time;
       }
       totalAmount += h.precipitationAmount;
       return {
@@ -129,15 +148,35 @@ export class WeatherService {
       };
     });
 
+    const significant = matchingHours.filter((h) => h.precipitationProbability >= 40 || h.precipitationAmount >= 0.2);
+    if (significant.length > 0) {
+      windowStart = significant[0].time;
+      windowEnd = significant[significant.length - 1].time;
+    }
+
     const hasRainRisk = maxProb >= 30 || totalAmount > 0.5;
+
+    const formatClock = (isoOrHm: string): string => {
+      const hm = isoOrHm.includes('T') ? isoOrHm.split('T')[1].substring(0, 5) : isoOrHm;
+      const hour = parseInt(hm.split(':')[0], 10);
+      if (Number.isNaN(hour)) return hm;
+      const suffix = hour >= 12 ? 'PM' : 'AM';
+      const h12 = hour % 12 || 12;
+      return `${h12} ${suffix}`;
+    };
+
     let peakTimeWindow = '';
-    if (peakHourStr) {
-      peakTimeWindow = `around ${peakHourStr}`;
+    if (hasRainRisk && windowStart && windowEnd && windowStart !== windowEnd) {
+      peakTimeWindow = `between ${formatClock(windowStart)} and ${formatClock(windowEnd)}`;
+    } else if (hasRainRisk && (firstRainIso || peakHourStr)) {
+      peakTimeWindow = `around ${formatClock(firstRainIso || peakHourStr)}`;
     }
 
     let summary = `Max rain probability for ${targetDateStr} is ${maxProb}%. Total estimated rain: ${totalAmount.toFixed(1)}mm.`;
     if (hasRainRisk) {
       summary = `Higher chance of rain expected on ${targetDateStr} ${peakTimeWindow} (up to ${maxProb}% probability).`;
+    } else {
+      summary = `No significant rain is expected on ${targetDateStr}.`;
     }
 
     return {
@@ -145,6 +184,9 @@ export class WeatherService {
       maxRainProbability: maxProb,
       totalRainAmountMm: Math.round(totalAmount * 10) / 10,
       peakRainTimeWindow: peakTimeWindow,
+      firstRainTime: firstRainIso ? formatClock(firstRainIso) : undefined,
+      rainWindowStart: windowStart ? formatClock(windowStart) : undefined,
+      rainWindowEnd: windowEnd ? formatClock(windowEnd) : undefined,
       hourlyRainBreakdown: hourlyBreakdown,
       summary
     };

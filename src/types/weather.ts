@@ -47,6 +47,7 @@ export interface ResolvedLocation {
   state?: string;
   timezone: string;
   elevation?: number;
+  locationType?: 'city' | 'state' | 'country' | 'region' | 'village' | 'landmark' | 'unknown';
 }
 
 export interface WeatherData {
@@ -64,6 +65,9 @@ export interface RainAnalysisResult {
   maxRainProbability: number;
   totalRainAmountMm: number;
   peakRainTimeWindow?: string;
+  firstRainTime?: string;
+  rainWindowStart?: string;
+  rainWindowEnd?: string;
   hourlyRainBreakdown: {
     time: string;
     probability: number;

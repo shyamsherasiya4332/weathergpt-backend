@@ -8,7 +8,8 @@ export interface LocationInput {
 }
 
 export interface AskRequest {
-  question: string;
+  question?: string;
+  message?: string;
   location?: LocationInput;
   language?: string;
   conversationId?: string;
@@ -308,6 +309,7 @@ export interface AskResponseSuccess {
   success: true;
   answer: string;
   language: string;
+  intent?: string;
   conversationId?: string;
   location?: ResolvedLocation;
   weather?: WeatherSnapshot;
