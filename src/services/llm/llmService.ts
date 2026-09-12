@@ -690,6 +690,7 @@ If the user asks to compare two locations (e.g. "difference between Ahmedabad an
 2. Clearly state that you are estimating the second location based on typical meteorological patterns.
 3. Compare them to the best of your ability. Do not ignore the second location.`;
 
+    let debugError = '';
     if (openAIClient.isConfigured()) {
       try {
         const answer = await openAIClient.generateChatCompletion(
@@ -700,12 +701,13 @@ If the user asks to compare two locations (e.g. "difference between Ahmedabad an
           return answer.trim();
         }
       } catch (err) {
+        debugError = (err as Error).message || String(err);
         logger.warn('LLM answer generation failed, using rule-based fallback:', err);
       }
     }
 
     const fallbackAns = this.generateFallbackAnswer(question, nlu, weatherData, rainAnalysis, targetDateStr);
-    return fallbackAns;
+    return fallbackAns + (debugError ? `\n\n(DEBUG - LLM ERROR: ${debugError})` : '');
   }
 
   private generateFallbackAnswer(
@@ -968,6 +970,7 @@ If the user asks to compare two locations (e.g. "difference between Ahmedabad an
     const isHinglish = language === 'hinglish';
     const isMr = language === 'mr';
 
+    let debugError = '';
     if (openAIClient.isConfigured()) {
       try {
         const prompt = `You are WeatherGPT, a helpful, highly intelligent, multi-talented AI assistant.
@@ -987,31 +990,20 @@ Instructions:
         );
         if (res && res.trim()) return res.trim();
       } catch (err) {
+        debugError = (err as Error).message || String(err);
         logger.warn('LLM general response generation failed, using fallback:', err);
       }
     }
 
-    if (isPa) {
-      return `ਮੈਂ WeatherGPT ਤੁਹਾਡਾ ਏਆਈ ਅਸਿਸਟੈਂਟ ਹਾਂ। 🌤️ ਮੈਂ ਤੁਹਾਡੇ ਹਰ ਸਵਾਲ ਦਾ ਜਵਾਬ ਦੇਣ ਅਤੇ ਮੌਸਮ ਬਾਰੇ ਜਾਣਕਾਰੀ ਦੇਣ ਲਈ ਹਾਜ਼ਰ ਹਾਂ। ਕਿਰਪਾ ਕਰਕੇ ਕੋਈ ਵੀ ਸਵਾਲ ਪੁੱਛੋ! 🙏`;
-    }
+    let fallback = '';
+    if (isPa) fallback = `ਮੈਂ WeatherGPT ਤੁਹਾਡਾ ਏਆਈ ਅਸਿਸਟੈਂਟ ਹਾਂ। 🌤️ ਮੈਂ ਤੁਹਾਡੇ ਹਰ ਸਵਾਲ ਦਾ ਜਵਾਬ ਦੇਣ ਅਤੇ ਮੌਸਮ ਬਾਰੇ ਜਾਣਕਾਰੀ ਦੇਣ ਲਈ ਹਾਜ਼ਰ ਹਾਂ। ਕਿਰਪਾ ਕਰਕੇ ਕੋਈ ਵੀ ਸਵਾਲ ਪੁੱਛੋ! 🙏`;
+    else if (isGu) fallback = `હું WeatherGPT એક એઆઈ આસિસ્ટન્ટ છું. 🌤️ હું તમને હવામાનની સાથે સાથે કોઈપણ માહિતી કે પ્રશ્નનો જવાબ આપવામાં મદદ કરી શકું છું. તમે મને કોઈપણ શહેરના હવામાન કે અન્ય વિષય વિશે પૂછી શકો છો! 🙏`;
+    else if (isHi) fallback = `मैं WeatherGPT एक एआई असिस्टेंट हूँ। 🌤️ मैं मौसम के साथ-साथ आपके किसी भी सवाल का जवाब देने में आपकी पूरी सहायता कर सकता हूँ। आप मुझसे मौसम या किसी भी विषय पर पूछ सकते हैं! 🙏`;
+    else if (isHinglish) fallback = `Main WeatherGPT ek AI Assistant hoon. 🌤️ Main weather ke saath saath aapke kisi bhi sawal ka answer de sakta hoon. Aap mujhse mausam ya kisi bhi topic par puchh sakte hain! 🙏`;
+    else if (isMr) fallback = `मी WeatherGPT एक AI सहाय्यक आहे. 🌤️ मी हवामानासोबतच आपल्या कोणत्याही प्रश्नाचे उत्तर देण्यास तयार आहे. आपण मला कोणत्याही विषयावर विचारू शकता! 🙏`;
+    else fallback = `I am WeatherGPT, an AI Assistant. 🌤️ I am here to help you with live weather forecasts, agricultural tips, and answer any questions you have. Feel free to ask! 🙏`;
 
-    if (isGu) {
-      return `હું WeatherGPT એક એઆઈ આસિસ્ટન્ટ છું. 🌤️ હું તમને હવામાનની સાથે સાથે કોઈપણ માહિતી કે પ્રશ્નનો જવાબ આપવામાં મદદ કરી શકું છું. તમે મને કોઈપણ શહેરના હવામાન કે અન્ય વિષય વિશે પૂછી શકો છો! 🙏`;
-    }
-
-    if (isHi) {
-      return `मैं WeatherGPT एक एआई असिस्टेंट हूँ। 🌤️ मैं मौसम के साथ-साथ आपके किसी भी सवाल का जवाब देने में आपकी पूरी सहायता कर सकता हूँ। आप मुझसे मौसम या किसी भी विषय पर पूछ सकते हैं! 🙏`;
-    }
-
-    if (isHinglish) {
-      return `Main WeatherGPT ek AI Assistant hoon. 🌤️ Main weather ke saath saath aapke kisi bhi sawal ka answer de sakta hoon. Aap mujhse mausam ya kisi bhi topic par puchh sakte hain! 🙏`;
-    }
-
-    if (isMr) {
-      return `मी WeatherGPT एक AI सहाय्यक आहे. 🌤️ मी हवामानासोबतच आपल्या कोणत्याही प्रश्नाचे उत्तर देण्यास तयार आहे. आपण मला कोणत्याही विषयावर विचारू शकता! 🙏`;
-    }
-
-    return `I am WeatherGPT, an AI Assistant. 🌤️ I am here to help you with live weather forecasts, agricultural tips, and answer any questions you have. Feel free to ask! 🙏`;
+    return fallback + (debugError ? `\n\n(DEBUG - LLM ERROR: ${debugError})` : '');
   }
 
   private appendFollowupSuggestion(rawAnswer: string, language: string, question: string): string {
