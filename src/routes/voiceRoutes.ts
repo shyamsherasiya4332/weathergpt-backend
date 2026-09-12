@@ -4,8 +4,11 @@ import { validateRequest } from '../middleware/validateRequest.js';
 
 const router = Router();
 
-// Raw binary audio parser for transcribe endpoint
-router.post('/transcribe', express.raw({ type: ['audio/*', 'application/octet-stream'], limit: '10mb' }), (req, res, next) => {
+import multer from 'multer';
+const upload = multer({ limits: { fileSize: 10 * 1024 * 1024 } }); // 10MB limit
+
+// Support BOTH raw binary and multipart/form-data
+router.post('/transcribe', upload.single('audio'), express.raw({ type: ['audio/*', 'application/octet-stream'], limit: '10mb' }), (req, res, next) => {
   voiceController.handleTranscribe(req, res, next);
 });
 

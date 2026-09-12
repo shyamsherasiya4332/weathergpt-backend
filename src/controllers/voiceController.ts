@@ -134,6 +134,10 @@ export class VoiceController {
       }
 
       const { text, language } = req.body;
+      if (!text || typeof text !== 'string') {
+        res.status(400).json({ success: false, error: { code: 'INVALID_TEXT', message: 'Text is required for speech synthesis.' } });
+        return;
+      }
       logger.info(`Voice speak request received (${text.length} chars, lang: ${language || 'auto'})`);
 
       const result = await voiceService.synthesize(text, language);
