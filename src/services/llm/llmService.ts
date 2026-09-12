@@ -569,15 +569,17 @@ Extract JSON:
       }
     }
 
+    const hasLocationInQuery = !!locationName;
+
     // Fall back to context location if available and no location in query
     if (!locationName && locationContext && 'name' in locationContext && locationContext.name) {
       locationName = locationContext.name;
     }
 
-    const isExplicitOffTopic = /what\s*is\s*my\s*name|maru\s*naa?m|mera\s*naa?m|who\s*am\s*i|my\s*age|maru\s*nam|mera\s*nam|who\s*are\s*you|tamaru\s*naam|aapka\s*naam|who\s*made\s*you|kone\s*banavya|kisine\s*banaya|who\s*created|tell\s*me\s*a?\s*joke|chutkule|joke\s*suno|tell\s*story|kahani|recipe|cook|capital\s*of|prime\s*minister|pm\s*of|president|who\s*is\s*the|calculate|2\s*\+\s*2|math|programming|write\s*a?\s*code|song\s*suno|gana\s*gao|song|movie|cinema|how\s*are\s*you|kem\s*cho|kaisa\s*ho|majama|fine|good|bad|thank\s*you|thanks|dhanyawad|aabhar/i.test(question);
+    const isExplicitOffTopic = /what\s*is\s*my\s*name|maru\s*naa?m|mera\s*naa?m|who\s*am\s*i|my\s*age|maru\s*nam|mera\s*nam|who\s*are\s*you|tamaru\s*naam|aapka\s*naam|who\s*made\s*you|kone\s*banavya|kisine\s*banaya|who\s*created|tell\s*me\s*a?\s*joke|chutkule|joke\s*suno|tell\s*story|kahani|recipe|cook|capital\s*of|prime\s*minister|pm\s*of|president|who\s*is\s*the|calculate|2\s*\+\s*2|math|programming|write\s*a?\s*code|song\s*suno|gana\s*gao|song|movie|cinema|how\s*are\s*you|kem\s*cho|kaisa\s*ho|majama|fine|good|bad|thank\s*you|thanks|dhanyawad|aabhar|translate|explain|meaning|matlab|shu\s*kehva|arth|bhasha/i.test(question);
     const hasWeatherKeywords = /weather|havaman|vatavaran|mausam|hawa|rain|varsad|barish|garmi|bafaro|thandi|tapman|taapman|temp|temperature|cloud|vadal|badal|sun|tado|dhoop|climate|chhatri|umbrella|storm|toofan|cyclone|flood|pur|wind|pawan|pavan|humidity|uv|degree|ડિગ્રી|ઝાપટાં|ઝાપટું|કાલ|આજ|સાંજ|સવાર|બપોર|રાત|kal|kale|kalnu|aaj|aaje|aajnu|sanj|sanje|savare|bapore|ratre|kevuk?|su\s*hase|kevu\s*chhe|hour|hourly|kalak|ghante|samay|time/i.test(question);
 
-    if (isExplicitOffTopic || (intent === 'general_forecast' && !hasWeatherKeywords && !locationName && targetDate === 'today' && !/^(?:how|kevu|kaisa|kaha|kya|su|chhe|hai|kal|aaj)\b/i.test(question.trim()))) {
+    if (isExplicitOffTopic || (intent === 'general_forecast' && !hasWeatherKeywords && !hasLocationInQuery && targetDate === 'today' && !/^(?:how|kevu|kaisa|kaha|kya|su|chhe|hai|kal|aaj)\b/i.test(question.trim()))) {
       intent = 'unknown';
     }
 
