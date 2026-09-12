@@ -305,23 +305,10 @@ class RAGService {
       return baseAnswer;
     }
 
-    // Append a knowledge context section
-    const separator = '\n\n';
-    let knowledgeNote: string;
-
-    switch (language) {
-      case 'hi':
-        knowledgeNote = `📚 **विशेषज्ञ जानकारी** (${topDoc.title}):\n${topDoc.content}\n_स्रोत: ${topDoc.source}_`;
-        break;
-      case 'gu':
-        knowledgeNote = `📚 **નિષ્ણાત માહિતી** (${topDoc.title}):\n${topDoc.content}\n_સ્ત્રોત: ${topDoc.source}_`;
-        break;
-      default:
-        knowledgeNote = `📚 **Expert Knowledge** (${topDoc.title}):\n${topDoc.content}\n_Source: ${topDoc.source}_`;
-        break;
-    }
-
-    return baseAnswer + separator + knowledgeNote;
+    // SIH Demo: Knowledge retrieval works in background, but we skip appending it 
+    // to the final voice answer to avoid extremely long TTS speech outputs.
+    // return baseAnswer + separator + knowledgeNote;
+    return baseAnswer;
   }
 }
 
