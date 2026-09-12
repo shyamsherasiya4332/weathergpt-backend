@@ -41,9 +41,36 @@ export class VoiceController {
         return;
       }
 
-      // Expect raw audio data in request body (binary)
-      const audioBuffer = req.body as Buffer;
-      const mimeType = req.headers['content-type'] || 'audio/webm';
+      let audioBuffer: Buffer;
+      let mimeType = req.headers['content-type'] || 'audio/webm';
+
+      if (Buffer.isBuffer(req.body)) {
+        audioBuffer = req.body;
+      } else if (req.body && typeof req.body === 'object' && req.body.audio) {
+        // They sent JSON with base64 audio
+        const audioStr = req.body.audio as string;
+        const b64Data = audioStr.replace(/^data:audio\/\w+;base64,/, '');
+        audioBuffer = Buffer.from(b64Data, 'base64');
+        if (audioStr.startsWith('data:audio/')) {
+          mimeType = audioStr.split(';')[0].substring(5);
+        }
+      } else if ((req as any).file || (req as any).files) {
+        // Just in case multer gets added later
+        const file = (req as any).file || (req as any).files?.audio || (req as any).files?.[0];
+        if (file) {
+          audioBuffer = file.buffer;
+          mimeType = file.mimetype;
+        } else {
+          audioBuffer = Buffer.from([]);
+        }
+      } else {
+        logger.error(`Invalid audio data type received: ${typeof req.body}. Body keys: ${Object.keys(req.body || {}).join(',')}`);
+        res.status(400).json({
+          success: false,
+          error: { code: 'INVALID_AUDIO_FORMAT', message: 'Audio data must be sent as raw binary (Blob) or JSON { "audio": "base64..." }. FormData is not supported without multer.' }
+        });
+        return;
+      }
 
       if (!audioBuffer || audioBuffer.length === 0) {
         res.status(400).json({
