@@ -682,7 +682,13 @@ ${rainAnalysis.peakRainTimeWindow ? `  * Peak Rain Time Window: ${rainAnalysis.p
   * Morning (06:00-12:00): ${morningStats.minTemp}-${morningStats.maxTemp}°C, ${morningStats.condition}, Rain Prob: ${morningStats.maxRainProb}%
   * Afternoon (12:00-17:00): ${afternoonStats.minTemp}-${afternoonStats.maxTemp}°C, ${afternoonStats.condition}, Rain Prob: ${afternoonStats.maxRainProb}%
   * Evening (17:00-21:00): ${eveningStats.minTemp}-${eveningStats.maxTemp}°C, ${eveningStats.condition}, Rain Prob: ${eveningStats.maxRainProb}%
-  * Night (21:00-06:00): ${nightStats.minTemp}-${nightStats.maxTemp}°C, ${nightStats.condition}, Rain Prob: ${nightStats.maxRainProb}%`;
+  * Night (21:00-06:00): ${nightStats.minTemp}-${nightStats.maxTemp}°C, ${nightStats.condition}, Rain Prob: ${nightStats.maxRainProb}%
+
+IMPORTANT INSTRUCTION FOR COMPARATIVE QUERIES:
+If the user asks to compare two locations (e.g. "difference between Ahmedabad and Mumbai") but you are only provided with Live Weather API Data for ONE location (e.g. Ahmedabad), you MUST:
+1. Provide the exact live data for the provided location.
+2. Clearly state that you are estimating the second location based on typical meteorological patterns.
+3. Compare them to the best of your ability. Do not ignore the second location.`;
 
     if (openAIClient.isConfigured()) {
       try {
