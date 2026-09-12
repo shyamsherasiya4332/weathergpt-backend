@@ -574,7 +574,7 @@ Extract JSON:
       locationName = locationContext.name;
     }
 
-    const isExplicitOffTopic = /what\s*is\s*my\s*name|maru\s*naa?m|mera\s*naa?m|who\s*am\s*i|my\s*age|maru\s*nam|mera\s*nam|who\s*are\s*you|tamaru\s*naam|aapka\s*naam|who\s*made\s*you|kone\s*banavya|kisine\s*banaya|who\s*created|tell\s*me\s*a?\s*joke|chutkule|joke\s*suno|tell\s*story|kahani|recipe|cook|capital\s*of|prime\s*minister|pm\s*of|president|who\s*is\s*the|calculate|2\s*\+\s*2|math|programming|write\s*a?\s*code|song\s*suno|gana\s*gao|song|movie|cinema/i.test(question);
+    const isExplicitOffTopic = /what\s*is\s*my\s*name|maru\s*naa?m|mera\s*naa?m|who\s*am\s*i|my\s*age|maru\s*nam|mera\s*nam|who\s*are\s*you|tamaru\s*naam|aapka\s*naam|who\s*made\s*you|kone\s*banavya|kisine\s*banaya|who\s*created|tell\s*me\s*a?\s*joke|chutkule|joke\s*suno|tell\s*story|kahani|recipe|cook|capital\s*of|prime\s*minister|pm\s*of|president|who\s*is\s*the|calculate|2\s*\+\s*2|math|programming|write\s*a?\s*code|song\s*suno|gana\s*gao|song|movie|cinema|how\s*are\s*you|kem\s*cho|kaisa\s*ho|majama|fine|good|bad|thank\s*you|thanks|dhanyawad|aabhar/i.test(question);
     const hasWeatherKeywords = /weather|havaman|vatavaran|mausam|hawa|rain|varsad|barish|garmi|bafaro|thandi|tapman|taapman|temp|temperature|cloud|vadal|badal|sun|tado|dhoop|climate|chhatri|umbrella|storm|toofan|cyclone|flood|pur|wind|pawan|pavan|humidity|uv|degree|ડિગ્રી|ઝાપટાં|ઝાપટું|કાલ|આજ|સાંજ|સવાર|બપોર|રાત|kal|kale|kalnu|aaj|aaje|aajnu|sanj|sanje|savare|bapore|ratre|kevuk?|su\s*hase|kevu\s*chhe/i.test(question);
 
     if (isExplicitOffTopic || (intent === 'general_forecast' && !hasWeatherKeywords && !locationName && targetDate === 'today' && !/^(?:how|kevu|kaisa|kaha|kya|su|chhe|hai|kal|aaj)\b/i.test(question.trim()))) {
@@ -942,6 +942,25 @@ ${rainAnalysis.peakRainTimeWindow ? `  * Peak Rain Time Window: ${rainAnalysis.p
   async generateOffTopicResponse(question: string, language: string): Promise<string> {
     const fullLangName = languageService.getLanguageName(language);
 
+    const isPa = language === 'pa' || /[\u0A00-\u0A7F]/.test(question);
+    const isGu = language === 'gu' || /[\u0A80-\u0AFF]/.test(question);
+    const isHi = language === 'hi' || /[\u0900-\u097F]/.test(question);
+    const isHinglish = language === 'hinglish';
+    const isMr = language === 'mr';
+
+    // Rule-based helpful fallbacks for common general queries (Extremely fast responses)
+    if (/who\s*(?:are|r)\s*you|તમે\s*કોણ|કોણ\s*છો|तुम\s*कौन|aap\s*kaun|who\s*made\s*you/i.test(question)) {
+      if (isGu) return `હું WeatherGPT છું, તમારો સ્માર્ટ AI આસિસ્ટન્ટ! 🌤️ હું તમને હવામાન, વરસાદ, ખેતીના પાક, વાતાવરણ તેમજ તમારા કોઈપણ સામાન્ય પ્રશ્નોના સચોટ જવાબો આપવામાં મદદ કરી શકું છું. તમે મને કોઈપણ વિષય વિશે પૂછી શકો છો! 😊`;
+      if (isHi || isHinglish) return `मैं WeatherGPT हूँ, आपका स्मार्ट AI असिस्टेंट! 🌤️ मैं आपको मौसम, बारिश, खेती-किसानी, जलवायु और आपके किसी भी सामान्य प्रश्न का सही उत्तर देने के लिए यहाँ हूँ। आप मुझसे कुछ भी पूछ सकते हैं! 😊`;
+      return `I am WeatherGPT, your smart AI Assistant! 🌤️ I can help you with live weather forecasts, rain alerts, agricultural advisories, and answer any general questions you may have. Feel free to ask me anything! 😊`;
+    }
+
+    if (/joke|જોક્સ|જોક|ચુટકુલા/i.test(question)) {
+      if (isGu) return `😄 એક મજાનો જોક:\nશિક્ષક: 'વરસાદ' અને 'પરીક્ષા' માં શું સમાનતા છે?\nવિદ્યાર્થી: બંનેની તૈયારી ગમે તેટલી કરો, છેલ્લે ધોવાઈ જ જવાય છે! 🌧️😂`;
+      if (isHi || isHinglish) return `😄 एक मज़ेदार जोक:\nटीचर: बारिश और परीक्षा में क्या समानता है?\nछात्र: सर, तैयारी चाहे कितनी भी कर लो, अंत में भीगना ही पड़ता है! 🌧️😂`;
+      return `😄 Here's a weather joke for you:\nWhy did the cloud stay home from school?\nBecause it was feeling a little under the weather! ☁️😂`;
+    }
+
     if (openAIClient.isConfigured()) {
       try {
         const prompt = `You are WeatherGPT, a helpful, highly intelligent, multi-talented AI assistant.
@@ -962,25 +981,6 @@ Instructions:
       } catch (err) {
         logger.warn('LLM general response generation failed, using fallback:', err);
       }
-    }
-
-    const isPa = language === 'pa' || /[\u0A00-\u0A7F]/.test(question);
-    const isGu = language === 'gu' || /[\u0A80-\u0AFF]/.test(question);
-    const isHi = language === 'hi' || /[\u0900-\u097F]/.test(question);
-    const isHinglish = language === 'hinglish';
-    const isMr = language === 'mr';
-
-    // Rule-based helpful fallbacks for common general queries
-    if (/who\s*(?:are|r)\s*you|તમે\s*કોણ|કોણ\s*છો|तुम\s*कौन|aap\s*kaun|who\s*made\s*you/i.test(question)) {
-      if (isGu) return `હું WeatherGPT છું, તમારો સ્માર્ટ AI આસિસ્ટન્ટ! 🌤️ હું તમને હવામાન, વરસાદ, ખેતીના પાક, વાતાવરણ તેમજ તમારા કોઈપણ સામાન્ય પ્રશ્નોના સચોટ જવાબો આપવામાં મદદ કરી શકું છું. તમે મને કોઈપણ વિષય વિશે પૂછી શકો છો! 😊`;
-      if (isHi || isHinglish) return `मैं WeatherGPT हूँ, आपका स्मार्ट AI असिस्टेंट! 🌤️ मैं आपको मौसम, बारिश, खेती-किसानी, जलवायु और आपके किसी भी सामान्य प्रश्न का सही उत्तर देने के लिए यहाँ हूँ। आप मुझसे कुछ भी पूछ सकते हैं! 😊`;
-      return `I am WeatherGPT, your smart AI Assistant! 🌤️ I can help you with live weather forecasts, rain alerts, agricultural advisories, and answer any general questions you may have. Feel free to ask me anything! 😊`;
-    }
-
-    if (/joke|જોક્સ|જોક|ચુટકુલા/i.test(question)) {
-      if (isGu) return `😄 એક મજાનો જોક:\nશિક્ષક: 'વરસાદ' અને 'પરીક્ષા' માં શું સમાનતા છે?\nવિદ્યાર્થી: બંનેની તૈયારી ગમે તેટલી કરો, છેલ્લે ધોવાઈ જ જવાય છે! 🌧️😂`;
-      if (isHi || isHinglish) return `😄 एक मज़ेदार जोक:\nटीचर: बारिश और परीक्षा में क्या समानता है?\nछात्र: सर, तैयारी चाहे कितनी भी कर लो, अंत में भीगना ही पड़ता है! 🌧️😂`;
-      return `😄 Here's a weather joke for you:\nWhy did the cloud stay home from school?\nBecause it was feeling a little under the weather! ☁️😂`;
     }
 
     if (isPa) {
