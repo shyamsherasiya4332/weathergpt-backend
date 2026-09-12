@@ -385,14 +385,23 @@ export class WeatherController {
       }
 
       if (!weatherResult.weatherData || !weatherResult.location) {
-        const errResp: ApiErrorResponse = {
-          success: false,
-          error: {
-            code: 'LOCATION_NOT_FOUND',
-            message: weatherResult.error || `Could not find weather data for requested location.`
-          }
+        const notFoundName = extractedName || finalLocationInput?.name || cleanQuestion;
+        let politeMsg = `I'm sorry, I couldn't find the location '${notFoundName}'. Could you please check the spelling or provide more details like the state or country?`;
+        
+        if (nlu.language === 'gu' || convContext?.language === 'gu') {
+          politeMsg = `માફ કરશો, મને '${notFoundName}' નામનું લોકેશન મળ્યું નથી. કૃપા કરીને સ્પેલિંગ તપાસો અથવા રાજ્ય/જિલ્લાનું નામ ઉમેરીને ફરી પૂછો.`;
+        } else if (nlu.language === 'hi' || convContext?.language === 'hi') {
+          politeMsg = `माफ़ करें, मुझे '${notFoundName}' नाम की लोकेशन नहीं मिली। कृपया स्पेलिंग चेक करें या राज्य/ज़िले का नाम जोड़कर फिर से पूछें।`;
+        }
+
+        const resp: AskResponseSuccess = {
+          success: true,
+          answer: politeMsg,
+          language: nlu.language,
+          conversationId: convContext?.id,
+          generated_at: new Date().toISOString()
         };
-        res.status(404).json(errResp);
+        res.json(resp);
         return;
       }
 
