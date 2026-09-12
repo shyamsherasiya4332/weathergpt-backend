@@ -42,6 +42,8 @@ const envSchema = z.object({
 
   // Voice / TTS
   OPENAI_VOICE_API_KEY: z.string().optional(),
+  OPENAI_VOICE_API_KEY_2: z.string().optional(),
+  OPENAI_VOICE_API_KEY_3: z.string().optional(),
   TTS_MODEL: z.string().default('tts-1'),
   TTS_VOICE: z.string().default('alloy'),
   WHISPER_MODEL: z.string().default('whisper-1')
