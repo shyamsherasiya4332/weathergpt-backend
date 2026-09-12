@@ -110,14 +110,6 @@ export class WeatherController {
         logger.info(`Handling off-topic unknown intent for query: "${cleanQuestion}"`);
         let offTopicAns = await llmService.generateOffTopicResponse(cleanQuestion, nlu.language, convContext?.lastAnswer);
         
-        if ((nlu.intent === 'TRANSLATION' || nlu.intent === 'EXPLANATION') && offTopicAns.includes('WeatherGPT')) {
-          offTopicAns = "I'm sorry, my AI translation engine is currently experiencing high traffic. Please try asking again in a few moments!";
-          if (nlu.language === 'gu' || /[\u0A80-\u0AFF]/.test(cleanQuestion)) {
-            offTopicAns = "માફ કરશો, અત્યારે સર્વર પર વધુ ટ્રાફિક હોવાથી હું ભાષાંતર કરી શકતો નથી. કૃપા કરીને થોડીવાર પછી ફરી પ્રયાસ કરો!";
-          } else if (nlu.language === 'hi' || /[\u0900-\u097F]/.test(cleanQuestion)) {
-            offTopicAns = "क्षमा करें, वर्तमान में सर्वर पर अधिक ट्रैफ़िक होने के कारण मैं अनुवाद नहीं कर सकता। कृपया थोड़ी देर बाद पुनः प्रयास करें!";
-          }
-        }
         if (convContext) {
           conversationService.updateConversation(convContext.id, { lastAnswer: offTopicAns, lastQuestion: cleanQuestion, turnCount: (convContext.turnCount || 0) + 1 });
         }
