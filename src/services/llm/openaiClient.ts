@@ -134,7 +134,7 @@ export class OpenAIClientWrapper {
         'Content-Type': 'application/json',
         'x-goog-api-key': cleanKey
       },
-      timeout: 30000
+      timeout: 9000
     });
     return res.data;
   }
@@ -205,12 +205,8 @@ export class OpenAIClientWrapper {
   ): Promise<string> {
     const modelsToTry = [
       'gemini-3.6-flash',
-      'gemini-3.6-pro',
-      this.modelName,
-      'gemini-2.5-flash',
-      'gemini-2.5-pro',
-      'gemini-1.5-flash'
-    ].filter((v, idx, arr) => arr.indexOf(v) === idx && v.startsWith('gemini'));
+      'gemini-3.6-pro'
+    ];
 
     let lastErr: Error | null = null;
     const cleanKey = apiKey.trim();
@@ -249,7 +245,7 @@ export class OpenAIClientWrapper {
             'Content-Type': 'application/json',
             'x-goog-api-key': cleanKey
           },
-          timeout: 30000
+          timeout: 9000
         });
 
         const answer = res.data.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -283,7 +279,7 @@ export class OpenAIClientWrapper {
               retryPayload,
               {
                 headers: { 'Content-Type': 'application/json', 'x-goog-api-key': cleanKey },
-                timeout: 30000
+                timeout: 9000
               }
             );
             const retryAnswer = retryRes.data.candidates?.[0]?.content?.parts?.[0]?.text;
