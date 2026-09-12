@@ -134,7 +134,7 @@ export class OpenAIClientWrapper {
         'Content-Type': 'application/json',
         'x-goog-api-key': cleanKey
       },
-      timeout: 10000
+      timeout: 30000
     });
     return res.data;
   }
@@ -250,7 +250,7 @@ export class OpenAIClientWrapper {
             'Content-Type': 'application/json',
             'x-goog-api-key': cleanKey
           },
-          timeout: 6000
+          timeout: 30000
         });
 
         const answer = res.data.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -284,7 +284,7 @@ export class OpenAIClientWrapper {
               retryPayload,
               {
                 headers: { 'Content-Type': 'application/json', 'x-goog-api-key': cleanKey },
-                timeout: 8000
+                timeout: 30000
               }
             );
             const retryAnswer = retryRes.data.candidates?.[0]?.content?.parts?.[0]?.text;
